@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build for x86_64-unknown-freebsd
+        run: cross build --release --target x86_64-unknown-freebsd
+
+      - name: Package release
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p dist
+          cp target/x86_64-unknown-freebsd/release/opncheck dist/
+          cp opncheck.example.toml dist/
+          cp install.sh dist/
+          cd dist
+          tar czf "../opncheck-${VERSION}-x86_64-unknown-freebsd.tar.gz" .
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: opncheck-*-x86_64-unknown-freebsd.tar.gz
