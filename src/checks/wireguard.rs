@@ -49,7 +49,7 @@ impl Check for Wireguard {
             let display_name = config_xml.wireguard_peer_name(peer).unwrap_or(peer);
             out.local(
                 state,
-                &format!("WireGuard Client: {display_name}"),
+                &format!("WireGuard: {display_name}"),
                 &metrics,
                 &summary,
             );
