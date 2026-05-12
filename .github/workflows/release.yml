@@ -17,7 +17,23 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache cargo registry and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: release-freebsd
+          cache-targets: true
+          cache-on-failure: true
+
+      - name: Cache cross binary
+        id: cache-cross
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cross
+          # Bump the suffix to force a rebuild of cross against latest master.
+          key: cross-${{ runner.os }}-git-master-v1
+
       - name: Install cross
+        if: steps.cache-cross.outputs.cache-hit != 'true'
         run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Build for x86_64-unknown-freebsd
