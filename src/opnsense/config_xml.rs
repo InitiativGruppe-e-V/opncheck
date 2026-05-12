@@ -26,34 +26,45 @@ pub struct OPNsenseSection {
     pub nginx: Option<PluginSection>,
     #[serde(rename = "OpenVPN")]
     pub openvpn: Option<EnableSection>,
-    #[serde(rename = "wireguard")]
-    pub wireguard: Option<WireguardConfig>,
+    pub wireguard: Option<WireguardSection>,
     pub unboundplus: Option<PluginSection>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
-pub struct WireguardConfig {
-    #[serde(default, deserialize_with = "deserialize_enabled_flag")]
-    pub enabled: Option<EnabledFlag>,
+pub struct WireguardSection {
+    pub general: WireguardGeneralSection,
+    pub client: WireguardClientSection,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct WireguardClientSection {
     #[serde(default)]
     pub clients: WireguardClients,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
+pub struct WireguardGeneralSection {
+    #[serde(default, deserialize_with = "deserialize_enabled_flag")]
+    pub enabled: Option<EnabledFlag>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct WireguardClients {
     #[serde(default)]
-    pub client: Vec<WireguardClient>,
+    pub clients: Vec<WireguardClient>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct WireguardClient {
+    #[serde(default, deserialize_with = "deserialize_enabled_flag")]
+    pub enabled: Option<EnabledFlag>,
     pub name: Option<String>,
     pub pubkey: Option<String>,
 }
 
-impl WireguardConfig {
+impl WireguardSection {
     pub fn is_enabled_or_present(&self) -> bool {
-        self.enabled.map(EnabledFlag::get).unwrap_or(true)
+        self.general.enabled.map(EnabledFlag::get).unwrap_or(true)
     }
 }
 
@@ -179,7 +190,7 @@ impl OpnsenseConfig {
         self.opnsense
             .as_ref()
             .and_then(|opnsense| opnsense.wireguard.as_ref())
-            .is_some_and(WireguardConfig::is_enabled_or_present)
+            .is_some_and(WireguardSection::is_enabled_or_present)
     }
 
     pub fn wireguard_peer_name(&self, pubkey: &str) -> Option<&str> {
@@ -187,9 +198,11 @@ impl OpnsenseConfig {
             .as_ref()
             .and_then(|opnsense| opnsense.wireguard.as_ref())
             .and_then(|wg| {
-                wg.clients
-                    .client
+                wg.client
+                    .clients
+                    .clients
                     .iter()
+                    .filter(|c| c.enabled.is_some_and(|t| t.0))
                     .find(|c| c.pubkey.as_deref() == Some(pubkey))
                     .and_then(|c| c.name.as_deref())
             })
