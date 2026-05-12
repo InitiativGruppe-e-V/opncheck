@@ -223,20 +223,27 @@ pub fn nginx_local(out: &mut AgentOutput, _config: &Config, _runner: &CommandRun
     ) else {
         return;
     };
-    out.section("local:sep(0)");
-    if data.contains("loadMsec") || data.contains("serverZones") || data.contains("upstreamZones") {
+    let body = data.split("\r\n\r\n").nth(1).unwrap_or(&data);
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(body) else {
+        return;
+    };
+    let uptime = json
+        .get("loadMsec")
+        .and_then(|value| value.as_f64())
+        .map(|start_msec| {
+            let now_msec = SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|duration| duration.as_millis() as f64)
+                .unwrap_or(start_msec);
+            ((now_msec - start_msec) / 1000.0).max(0.0)
+        });
+    if let Some(uptime) = uptime {
+        out.section("local:sep(0)");
         out.local(
             LocalState::Ok,
             "Nginx Uptime",
-            "uptime=1",
+            &format!("uptime={uptime:.0}"),
             "Nginx status socket responding",
-        );
-    } else {
-        out.local(
-            LocalState::Warn,
-            "Nginx Uptime",
-            "uptime=0",
-            "Nginx status socket returned unexpected data",
         );
     }
 }
