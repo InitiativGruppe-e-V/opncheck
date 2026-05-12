@@ -5,6 +5,8 @@ REPO="initiativgruppe-e-v/opncheck"
 INSTALL_DIR="/usr/local/bin"
 PLUGIN_DIR="/usr/local/lib/check_mk_agent/plugins"
 CONFIG_DIR="/usr/local/etc"
+SSH_DIR="/root/.ssh"
+AUTHORIZED_KEYS="$SSH_DIR/authorized_keys2"
 
 ARCH=$(uname -m)
 if [ "$ARCH" != "amd64" ]; then
@@ -31,15 +33,13 @@ if [ ! -f "$INSTALL_DIR/opncheck" ]; then
     echo "Installing check_mk_agent and dependencies ..."
     pkg install -y ipmitool libstatgrab bash wget check_mk_agent
 
-    SSH_DIR="/root/.ssh"
-    AUTHORIZED_KEYS="$SSH_DIR/authorized_keys"
     if [ ! -d "$SSH_DIR" ]; then
         mkdir -p "$SSH_DIR"
         chmod 700 "$SSH_DIR"
     fi
     if [ ! -f "$AUTHORIZED_KEYS" ]; then
         : > "$AUTHORIZED_KEYS"
-        chmod 644 "$AUTHORIZED_KEYS"
+        chmod 600 "$AUTHORIZED_KEYS"
     fi
 
     if [ -r /dev/tty ]; then
@@ -69,7 +69,7 @@ if [ ! -f "$INSTALL_DIR/opncheck" ]; then
     fi
 fi
 
-mkdir -p "$INSTALL_DIR" || true
+mkdir -p "$PLUGIN_DIR" || true
 
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
