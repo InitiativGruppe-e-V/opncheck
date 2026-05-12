@@ -11,7 +11,6 @@ const COLLECTORS: &[(&str, Collector)] = &[
     ("dhcp", opnsense::dhcp),
     ("gateway", opnsense::gateway_local),
     ("unbound", opnsense::unbound_local),
-    ("squid", opnsense::squid),
     ("haproxy", opnsense::haproxy),
     ("nginx", opnsense::nginx_local),
     ("ipsec", opnsense::ipsec_local),

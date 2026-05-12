@@ -1,6 +1,6 @@
 [checks]
 # OPNsense plugin checks can be disabled here.
-# Example: skip = ["squid", "wireguard"]
+# Example: skip = ["wireguard"]
 skip = []
 inventory_interval_seconds = 14400
 

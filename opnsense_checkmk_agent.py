@@ -25,7 +25,6 @@
 ##
 ## for server-side implementation of 
 ##      * smartdisk - install the mkp from https://github.com/bashclub/checkmk-smart plugins os-smart
-##      * squid     - install the mkp from https://exchange.checkmk.com/p/squid and forwarder -> listen on loopback active
 
 ##  task types2
 ##  speedtest|proxy|ssh|nmap|domain|blocklist
@@ -745,20 +744,6 @@ class checkmk_checker(object):
         _ret.append("[leases]")
         for _ip in sorted(_dhcpleases_dict.keys()):
             _ret.append(_ip)
-        return _ret
-
-    def check_squid(self):
-        _squid_config = self._config_reader().get("OPNsense",{}).get("proxy",{})
-        if _squid_config.get("general",{}).get("enabled") != "1":
-            return []
-        _ret = ["<<<squid>>>"]
-        _port = _squid_config.get("forward",{}).get("port","3128")
-        try:
-            _response = requests.get(f"http://127.0.0.1:{_port}/squid-internal-mgr/5min",timeout=0.2)
-            if _response.status_code == 200:
-                _ret += _response.text.split("\n")
-        except:
-            pass
         return _ret
 
     def checklocal_pkgaudit(self):
@@ -2581,7 +2566,6 @@ if __name__ == "__main__":
         print("Server-side implementation for")
         print("-"*35)
         print("\t* smartdisk - install the mkp from https://github.com/bashclub/checkmk-smart plugins os-smart")
-        print("\t* squid - install the mkp from https://exchange.checkmk.com/p/squid and forwarder -> listen on loopback active\n")
         _parser.print_help()
         print("\n")
         if "start" in SYSHOOK_METHOD:

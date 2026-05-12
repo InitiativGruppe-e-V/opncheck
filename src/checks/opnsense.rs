@@ -120,6 +120,12 @@ pub fn services_local(out: &mut AgentOutput, _config: &Config, _runner: &Command
 }
 
 pub fn dhcp(out: &mut AgentOutput, _config: &Config, runner: &CommandRunner) {
+    let Some(config_xml) = read_opnsense_config() else {
+        return;
+    };
+    if !config_xml.has_dhcp() {
+        return;
+    }
     let lease_path = Path::new("/var/dhcpd/var/db/dhcpd.leases");
     let Ok(leases) = fs::read_to_string(lease_path) else {
         return;
@@ -141,6 +147,12 @@ pub fn dhcp(out: &mut AgentOutput, _config: &Config, runner: &CommandRunner) {
 }
 
 pub fn gateway_local(out: &mut AgentOutput, _config: &Config, runner: &CommandRunner) {
+    let Some(config_xml) = read_opnsense_config() else {
+        return;
+    };
+    if !config_xml.has_gateways() {
+        return;
+    }
     let status = runner
         .run(
             "/usr/local/opnsense/scripts/routes/gateway_status.py",
@@ -158,6 +170,15 @@ pub fn gateway_local(out: &mut AgentOutput, _config: &Config, runner: &CommandRu
 }
 
 pub fn unbound_local(out: &mut AgentOutput, _config: &Config, runner: &CommandRunner) {
+    let Some(config_xml) = read_opnsense_config() else {
+        return;
+    };
+    if !config_xml.unbound_enabled() {
+        return;
+    }
+    if !Path::new("/var/unbound/unbound.conf").exists() {
+        return;
+    }
     let data = runner
         .run(
             "/usr/local/sbin/unbound-control",
@@ -194,21 +215,16 @@ pub fn unbound_local(out: &mut AgentOutput, _config: &Config, runner: &CommandRu
     );
 }
 
-pub fn squid(out: &mut AgentOutput, _config: &Config, runner: &CommandRunner) {
-    let data = runner
-        .run(
-            "fetch",
-            ["-qo", "-", "http://127.0.0.1:3128/squid-internal-mgr/5min"],
-        )
-        .unwrap_or_default();
-    if data.trim().is_empty() {
+pub fn haproxy(out: &mut AgentOutput, _config: &Config, _runner: &CommandRunner) {
+    let Some(config_xml) = read_opnsense_config() else {
+        return;
+    };
+    if !config_xml.haproxy_enabled() {
         return;
     }
-    out.section("squid");
-    out.raw_block(data.trim_end());
-}
-
-pub fn haproxy(out: &mut AgentOutput, _config: &Config, _runner: &CommandRunner) {
+    if !Path::new("/var/run/haproxy.socket").exists() {
+        return;
+    }
     let Some(data) = unix_socket_command("/var/run/haproxy.socket", b"show stat\n") else {
         return;
     };
@@ -217,6 +233,15 @@ pub fn haproxy(out: &mut AgentOutput, _config: &Config, _runner: &CommandRunner)
 }
 
 pub fn nginx_local(out: &mut AgentOutput, _config: &Config, _runner: &CommandRunner) {
+    let Some(config_xml) = read_opnsense_config() else {
+        return;
+    };
+    if !config_xml.nginx_enabled() {
+        return;
+    }
+    if !Path::new("/var/run/nginx_status.sock").exists() {
+        return;
+    }
     let Some(response) = unix_socket_http(
         "/var/run/nginx_status.sock",
         b"GET /vts HTTP/1.1\r\nHost: nginx\r\nConnection: close\r\n\r\n",
@@ -263,6 +288,12 @@ pub fn nginx_local(out: &mut AgentOutput, _config: &Config, _runner: &CommandRun
 }
 
 pub fn ipsec_local(out: &mut AgentOutput, _config: &Config, runner: &CommandRunner) {
+    let Some(config_xml) = read_opnsense_config() else {
+        return;
+    };
+    if !config_xml.ipsec_enabled() {
+        return;
+    }
     let data = runner
         .run(
             "/usr/local/opnsense/scripts/ipsec/list_status.py",
@@ -307,6 +338,12 @@ pub fn ipsec_local(out: &mut AgentOutput, _config: &Config, runner: &CommandRunn
 }
 
 pub fn wireguard_local(out: &mut AgentOutput, _config: &Config, runner: &CommandRunner) {
+    let Some(config_xml) = read_opnsense_config() else {
+        return;
+    };
+    if !config_xml.wireguard_enabled() {
+        return;
+    }
     let data = runner
         .run("wg", ["show", "all", "dump"])
         .unwrap_or_default();
@@ -358,6 +395,10 @@ fn emit_gateway_json(out: &mut AgentOutput, json: &serde_json::Value) {
             "Gateway status",
         );
     }
+}
+
+fn read_opnsense_config() -> Option<opnsense_data::config_xml::OpnsenseConfig> {
+    opnsense_data::config_xml::read_config(Path::new("/conf/config.xml"))
 }
 
 fn pidof(runner: &CommandRunner, process_name: &str) -> Option<i64> {
