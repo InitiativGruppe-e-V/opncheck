@@ -65,7 +65,7 @@ pub fn pkgaudit_local(out: &mut AgentOutput, _config: &Config, runner: &CommandR
     );
 }
 
-pub fn services_local(out: &mut AgentOutput, _config: &Config, _runner: &CommandRunner) {
+pub fn services_local(out: &mut AgentOutput, config: &Config, _runner: &CommandRunner) {
     let php = r#"<?php require_once("config.inc");require_once("system.inc");require_once("plugins.inc");require_once("util.inc"); foreach(plugins_services() as $_service) { printf("%s;%s;%s\n",$_service["name"],$_service["description"],service_status($_service));} ?>"#;
     let Ok(output) = std::process::Command::new("php")
         .stdin(std::process::Stdio::piped())
@@ -86,8 +86,23 @@ pub fn services_local(out: &mut AgentOutput, _config: &Config, _runner: &Command
         .lines()
         .filter_map(|line| {
             let parts = line.splitn(3, ';').collect::<Vec<_>>();
-            (parts.len() == 3).then(|| (parts[1].to_owned(), parts[2] == "1"))
+            if parts.len() != 3 {
+                return None;
+            }
+            let name = parts[0].to_owned();
+            let description = parts[1].to_owned();
+            let running = parts[2] == "1";
+            Some((name, description, running))
         })
+        .filter(|(name, _, _)| {
+            let name_lower = name.to_lowercase();
+            !config
+                .checks
+                .services_ignored
+                .iter()
+                .any(|ignored| name_lower.contains(&ignored.to_lowercase()))
+        })
+        .map(|(_, description, running)| (description, running))
         .collect::<Vec<_>>();
     if services.is_empty() {
         return;

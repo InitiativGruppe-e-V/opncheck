@@ -2,6 +2,9 @@
 # OPNsense plugin checks can be disabled here.
 # Example: skip = ["wireguard"]
 skip = []
+# Services whose names contain these strings (case-insensitive) are ignored.
+# Default: ["iperf"] — matches iperf, iperf3, etc.
+services_ignored = ["iperf"]
 inventory_interval_seconds = 14400
 
 [security]

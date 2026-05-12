@@ -19,6 +19,7 @@ pub struct Paths {}
 #[serde(default)]
 pub struct Checks {
     pub skip: BTreeSet<String>,
+    pub services_ignored: BTreeSet<String>,
     pub inventory_interval_seconds: u64,
 }
 
@@ -35,6 +36,7 @@ impl Default for Checks {
     fn default() -> Self {
         Self {
             skip: BTreeSet::new(),
+            services_ignored: BTreeSet::from(["iperf".to_owned()]),
             inventory_interval_seconds: 14_400,
         }
     }
