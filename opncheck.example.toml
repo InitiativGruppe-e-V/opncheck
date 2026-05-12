@@ -1,0 +1,22 @@
+[paths]
+base = "/usr/local/check_mk_agent"
+var = "/var/lib/check_mk_agent"
+config_dir = "/usr/local/etc"
+local = "/usr/local/check_mk_agent/local"
+plugins = "/usr/local/check_mk_agent/plugins"
+spool = "/var/lib/check_mk_agent/spool"
+tasks = "/usr/local/check_mk_agent/tasks"
+
+[checks]
+# Section/check names implemented by the Rust agent can be disabled here.
+# Example: skip = ["ps", "zfs"]
+skip = []
+inventory_interval_seconds = 14400
+
+[security]
+# Keep this enabled in production. Plugin/local/spool files must be regular,
+# root-owned, and not group/world-writable.
+require_safe_paths = true
+max_spool_file_bytes = 1048576
+plugin_timeout_seconds = 60
+command_timeout_seconds = 30

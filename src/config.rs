@@ -1,0 +1,91 @@
+use std::{collections::BTreeSet, fs, path::PathBuf};
+
+use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Config {
+    pub paths: Paths,
+    pub checks: Checks,
+    pub security: Security,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Paths {
+    pub base: PathBuf,
+    pub var: PathBuf,
+    pub config_dir: PathBuf,
+    pub local: PathBuf,
+    pub plugins: PathBuf,
+    pub spool: PathBuf,
+    pub tasks: PathBuf,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Checks {
+    pub skip: BTreeSet<String>,
+    pub inventory_interval_seconds: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Security {
+    pub require_safe_paths: bool,
+    pub max_spool_file_bytes: u64,
+    pub plugin_timeout_seconds: u64,
+    pub command_timeout_seconds: u64,
+}
+
+impl Default for Paths {
+    fn default() -> Self {
+        let base = PathBuf::from("/usr/local/check_mk_agent");
+        let var = PathBuf::from("/var/lib/check_mk_agent");
+        Self {
+            config_dir: PathBuf::from("/usr/local/etc"),
+            local: base.join("local"),
+            plugins: base.join("plugins"),
+            spool: var.join("spool"),
+            tasks: base.join("tasks"),
+            base,
+            var,
+        }
+    }
+}
+
+impl Default for Checks {
+    fn default() -> Self {
+        Self {
+            skip: BTreeSet::new(),
+            inventory_interval_seconds: 14_400,
+        }
+    }
+}
+
+impl Default for Security {
+    fn default() -> Self {
+        Self {
+            require_safe_paths: true,
+            max_spool_file_bytes: 1024 * 1024,
+            plugin_timeout_seconds: 60,
+            command_timeout_seconds: 30,
+        }
+    }
+}
+
+impl Config {
+    pub fn load(path: &PathBuf) -> Result<Self> {
+        if !path.exists() {
+            return Ok(Self::default());
+        }
+        let raw = fs::read_to_string(path)
+            .with_context(|| format!("failed to read config {}", path.display()))?;
+        toml::from_str(&raw).with_context(|| format!("failed to parse config {}", path.display()))
+    }
+
+    pub fn check_enabled(&self, name: &str) -> bool {
+        !self.checks.skip.contains(name)
+    }
+}
