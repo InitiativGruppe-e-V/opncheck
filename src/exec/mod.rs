@@ -29,7 +29,7 @@ impl CommandRunner {
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
     {
-        // The MVP uses std::process to avoid pulling an async runtime into SSH dump mode.
+        // The plugin path uses std::process to avoid pulling an async runtime into agent execution.
         // The timeout is kept in the API so the server/task scheduler can switch to tokio later.
         let output = Command::new(program)
             .args(args)

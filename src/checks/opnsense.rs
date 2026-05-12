@@ -4,7 +4,7 @@ use std::{
     io::{Read, Write},
     os::unix::net::UnixStream,
     path::Path,
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 
 use regex::Regex;
@@ -13,21 +13,56 @@ use crate::{
     agent::output::{AgentOutput, LocalState},
     config::Config,
     exec::CommandRunner,
+    opnsense as opnsense_data,
 };
 
-pub fn net(out: &mut AgentOutput, _config: &Config, runner: &CommandRunner) {
-    let data = runner
-        .run("netstat", ["-i", "-b", "-d", "-n", "-W", "-f", "link"])
-        .unwrap_or_default();
-    let ifconfig = runner
-        .run("ifconfig", ["-m", "-v", "-f", "inet:cidr,inet6:cidr"])
-        .unwrap_or_default();
-    if data.trim().is_empty() && ifconfig.trim().is_empty() {
+pub fn firmware_local(out: &mut AgentOutput, _config: &Config, _runner: &CommandRunner) {
+    let core_path = Path::new("/usr/local/opnsense/version/core");
+    if !core_path.exists() {
         return;
     }
-    out.section("statgrab_net");
-    emit_netstat_interfaces(out, &data);
-    emit_ifconfig_status(out, &ifconfig);
+    let core = opnsense_data::read_core_version(core_path);
+    let current = core.product_version.unwrap_or_else(|| "unknown".to_owned());
+    let age = fs::metadata("/conf/config.xml")
+        .and_then(|metadata| metadata.modified())
+        .ok()
+        .and_then(|modified| SystemTime::now().duration_since(modified).ok())
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0);
+    out.section("local:sep(0)");
+    out.local(
+        LocalState::Ok,
+        "OPNsense Firmware",
+        &format!("update_available=0|apply_finish_time={age}"),
+        &format!("Version {current}"),
+    );
+}
+
+pub fn pkgaudit_local(out: &mut AgentOutput, _config: &Config, runner: &CommandRunner) {
+    let data = runner
+        .run("pkg", ["audit", "-F", "--raw=json-compact", "-q"])
+        .unwrap_or_default();
+    out.section("local:sep(0)");
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(&data) else {
+        out.local(LocalState::Ok, "OPNsense Package Audit", "issues=0", "OK");
+        return;
+    };
+    let vulns = json.get("pkg_count").and_then(|v| v.as_u64()).unwrap_or(0);
+    if vulns == 0 {
+        out.local(LocalState::Ok, "OPNsense Package Audit", "issues=0", "OK");
+        return;
+    }
+    let packages = json
+        .get("packages")
+        .and_then(|v| v.as_object())
+        .map(|packages| packages.keys().cloned().collect::<Vec<_>>().join(", "))
+        .unwrap_or_default();
+    out.local(
+        LocalState::Warn,
+        "OPNsense Package Audit",
+        &format!("issues={vulns}"),
+        &format!("Pkg: {packages} vulnerable"),
+    );
 }
 
 pub fn services_local(out: &mut AgentOutput, _config: &Config, _runner: &CommandRunner) {
@@ -66,14 +101,14 @@ pub fn services_local(out: &mut AgentOutput, _config: &Config, _runner: &Command
     if stopped.is_empty() {
         out.local(
             LocalState::Ok,
-            "Services",
+            "OPNsense Services",
             &format!("running_services={}|stopped_service=0", services.len()),
             "All Services running",
         );
     } else {
         out.local(
             LocalState::Crit,
-            "Services",
+            "OPNsense Services",
             &format!(
                 "running_services={}|stopped_service={}",
                 services.len() - stopped.len(),
@@ -275,98 +310,6 @@ pub fn wireguard_local(out: &mut AgentOutput, _config: &Config, runner: &Command
             &format!("{iface}: {endpoint}"),
         );
     }
-}
-
-fn emit_netstat_interfaces(out: &mut AgentOutput, data: &str) {
-    let mut lines = data.lines();
-    let Some(header) = lines.next() else {
-        return;
-    };
-    let headers = header
-        .to_lowercase()
-        .replace("pkts", "packets")
-        .replace("coll", "collisions")
-        .replace("errs", "errors")
-        .replace("ibytes", "rx")
-        .replace("obytes", "tx");
-    let headers = headers.split_whitespace().collect::<Vec<_>>();
-    for line in lines.filter(|line| !line.trim().is_empty()) {
-        let values = line.split_whitespace().collect::<Vec<_>>();
-        if values.len() < headers.len() {
-            continue;
-        }
-        let row = headers.iter().zip(values.iter()).collect::<HashMap<_, _>>();
-        let Some(name) = row.get(&"name") else {
-            continue;
-        };
-        let sanitized = name.replace('.', "_");
-        for key in [
-            "mtu",
-            "ipackets",
-            "ierrors",
-            "idrop",
-            "rx",
-            "opackets",
-            "oerrors",
-            "tx",
-            "collisions",
-            "drop",
-        ] {
-            if let Some(value) = row.get(&key) {
-                out.line(format!("{sanitized}.{key} {value}"));
-            }
-        }
-    }
-}
-
-fn emit_ifconfig_status(out: &mut AgentOutput, data: &str) {
-    let ether_regex = Regex::new(r"(?m)^\s*ether\s+([^\s]+)").ok();
-    for (iface, body) in split_ifconfig_blocks(data) {
-        let sanitized = iface.replace('.', "_");
-        let up = if body.contains("status: active")
-            || body.contains("flags=") && body.contains("<UP,")
-        {
-            "true"
-        } else {
-            "false"
-        };
-        out.line(format!("{sanitized}.up {up}"));
-        if let Some(mac) = ether_regex
-            .as_ref()
-            .and_then(|re| re.captures(&body))
-            .and_then(|caps| caps.get(1).map(|m| m.as_str().to_owned()))
-        {
-            out.line(format!("{sanitized}.phys_address {mac}"));
-        }
-    }
-}
-
-fn split_ifconfig_blocks(data: &str) -> Vec<(String, String)> {
-    let mut blocks = Vec::new();
-    let mut current_iface: Option<String> = None;
-    let mut current_body = String::new();
-    for line in data.lines() {
-        let is_header = !line.starts_with(char::is_whitespace)
-            && line
-                .split_once(':')
-                .map(|(name, _)| {
-                    name.chars()
-                        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.')
-                })
-                .unwrap_or(false);
-        if is_header {
-            if let Some(iface) = current_iface.take() {
-                blocks.push((iface, std::mem::take(&mut current_body)));
-            }
-            current_iface = line.split_once(':').map(|(name, _)| name.to_owned());
-        }
-        current_body.push_str(line);
-        current_body.push('\n');
-    }
-    if let Some(iface) = current_iface {
-        blocks.push((iface, current_body));
-    }
-    blocks
 }
 
 fn emit_gateway_json(out: &mut AgentOutput, json: &serde_json::Value) {

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]
-#[command(version, about = "OPNsense Checkmk agent")]
+#[command(version, about = "OPNsense Checkmk FreeBSD agent plugin")]
 pub struct Cli {
     #[arg(short, long, default_value = "/usr/local/etc/opncheck.toml")]
     pub config: PathBuf,
@@ -17,8 +17,8 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Print Checkmk agent output to stdout. Recommended for SSH transport.
-    Dump,
+    /// Print plugin output for the stock Checkmk FreeBSD agent.
+    Plugin,
     /// Print a redacted view of the effective configuration.
     Config,
 }

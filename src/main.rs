@@ -15,9 +15,9 @@ fn main() -> Result<()> {
         .init();
 
     let config = Config::load(&cli.config)?;
-    match cli.command.unwrap_or(Command::Dump) {
-        Command::Dump => {
-            print!("{}", agent::dump(&config)?);
+    match cli.command.unwrap_or(Command::Plugin) {
+        Command::Plugin => {
+            print!("{}", agent::plugin_output(&config)?);
         }
         Command::Config => {
             println!("{}", toml::to_string_pretty(&config)?);

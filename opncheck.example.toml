@@ -1,15 +1,6 @@
-[paths]
-base = "/usr/local/check_mk_agent"
-var = "/var/lib/check_mk_agent"
-config_dir = "/usr/local/etc"
-local = "/usr/local/check_mk_agent/local"
-plugins = "/usr/local/check_mk_agent/plugins"
-spool = "/var/lib/check_mk_agent/spool"
-tasks = "/usr/local/check_mk_agent/tasks"
-
 [checks]
-# Section/check names implemented by the Rust agent can be disabled here.
-# Example: skip = ["ps", "zfs"]
+# OPNsense plugin checks can be disabled here.
+# Example: skip = ["squid", "wireguard"]
 skip = []
 inventory_interval_seconds = 14400
 

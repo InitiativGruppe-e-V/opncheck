@@ -11,17 +11,9 @@ pub struct Config {
     pub security: Security,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
-pub struct Paths {
-    pub base: PathBuf,
-    pub var: PathBuf,
-    pub config_dir: PathBuf,
-    pub local: PathBuf,
-    pub plugins: PathBuf,
-    pub spool: PathBuf,
-    pub tasks: PathBuf,
-}
+pub struct Paths {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -37,22 +29,6 @@ pub struct Security {
     pub max_spool_file_bytes: u64,
     pub plugin_timeout_seconds: u64,
     pub command_timeout_seconds: u64,
-}
-
-impl Default for Paths {
-    fn default() -> Self {
-        let base = PathBuf::from("/usr/local/check_mk_agent");
-        let var = PathBuf::from("/var/lib/check_mk_agent");
-        Self {
-            config_dir: PathBuf::from("/usr/local/etc"),
-            local: base.join("local"),
-            plugins: base.join("plugins"),
-            spool: var.join("spool"),
-            tasks: base.join("tasks"),
-            base,
-            var,
-        }
-    }
 }
 
 impl Default for Checks {
