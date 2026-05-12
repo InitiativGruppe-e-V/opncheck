@@ -25,6 +25,8 @@ TAG="${LATEST#v}"
 ASSET="opncheck-${TAG}-x86_64-unknown-freebsd.tar.gz"
 URL="https://github.com/$REPO/releases/download/${LATEST}/${ASSET}"
 
+mkdir -p "$INSTALL_DIR" || true
+
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 

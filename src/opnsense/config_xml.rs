@@ -27,8 +27,34 @@ pub struct OPNsenseSection {
     #[serde(rename = "OpenVPN")]
     pub openvpn: Option<EnableSection>,
     #[serde(rename = "wireguard")]
-    pub wireguard: Option<EnableSection>,
+    pub wireguard: Option<WireguardConfig>,
     pub unboundplus: Option<PluginSection>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct WireguardConfig {
+    #[serde(default, deserialize_with = "deserialize_enabled_flag")]
+    pub enabled: Option<EnabledFlag>,
+    #[serde(default)]
+    pub clients: WireguardClients,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct WireguardClients {
+    #[serde(default)]
+    pub client: Vec<WireguardClient>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct WireguardClient {
+    pub name: Option<String>,
+    pub pubkey: Option<String>,
+}
+
+impl WireguardConfig {
+    pub fn is_enabled_or_present(&self) -> bool {
+        self.enabled.map(EnabledFlag::get).unwrap_or(true)
+    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -153,7 +179,20 @@ impl OpnsenseConfig {
         self.opnsense
             .as_ref()
             .and_then(|opnsense| opnsense.wireguard.as_ref())
-            .is_some_and(EnableSection::is_enabled_or_present)
+            .is_some_and(WireguardConfig::is_enabled_or_present)
+    }
+
+    pub fn wireguard_peer_name(&self, pubkey: &str) -> Option<&str> {
+        self.opnsense
+            .as_ref()
+            .and_then(|opnsense| opnsense.wireguard.as_ref())
+            .and_then(|wg| {
+                wg.clients
+                    .client
+                    .iter()
+                    .find(|c| c.pubkey.as_deref() == Some(pubkey))
+                    .and_then(|c| c.name.as_deref())
+            })
     }
 }
 

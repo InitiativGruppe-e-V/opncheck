@@ -7,6 +7,12 @@ skip = []
 services_ignored = ["iperf"]
 inventory_interval_seconds = 14400
 
+[checks.wireguard]
+# Seconds since the last WireGuard handshake before alerting.
+# A peer that has never connected (latest_handshake=0) is always CRIT.
+stale_warn_seconds = 300
+stale_crit_seconds = 900
+
 [security]
 # Keep this enabled in production. Plugin/local/spool files must be regular,
 # root-owned, and not group/world-writable.
