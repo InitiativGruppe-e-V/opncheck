@@ -217,32 +217,46 @@ pub fn haproxy(out: &mut AgentOutput, _config: &Config, _runner: &CommandRunner)
 }
 
 pub fn nginx_local(out: &mut AgentOutput, _config: &Config, _runner: &CommandRunner) {
-    let Some(data) = unix_socket_http(
+    let Some(response) = unix_socket_http(
         "/var/run/nginx_status.sock",
-        b"GET / HTTP/1.0\r\nHost: nginx\r\n\r\n",
-    ) else {
+        b"GET /vts HTTP/1.1\r\nHost: nginx\r\nConnection: close\r\n\r\n",
+    )
+    .or_else(|| {
+        unix_socket_http(
+            "/var/run/nginx_status.sock",
+            b"GET / HTTP/1.1\r\nHost: nginx\r\nConnection: close\r\n\r\n",
+        )
+    }) else {
         return;
     };
-    let body = data.split("\r\n\r\n").nth(1).unwrap_or(&data);
-    let Ok(json) = serde_json::from_str::<serde_json::Value>(body) else {
+
+    let (status, body) = split_http_response(&response);
+    if !matches!(status, Some(200..=299) | None) {
         return;
-    };
-    let uptime = json
-        .get("loadMsec")
-        .and_then(|value| value.as_f64())
-        .map(|start_msec| {
-            let now_msec = SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|duration| duration.as_millis() as f64)
-                .unwrap_or(start_msec);
-            ((now_msec - start_msec) / 1000.0).max(0.0)
-        });
-    if let Some(uptime) = uptime {
-        out.section("local:sep(0)");
+    }
+
+    out.section("local:sep(0)");
+    if let Ok(json) = serde_json::from_str::<serde_json::Value>(body) {
+        if let Some(uptime) = nginx_uptime(&json) {
+            out.local(
+                LocalState::Ok,
+                "Nginx Uptime",
+                &format!("uptime={uptime:.0}"),
+                "Nginx VTS status socket responding",
+            );
+            return;
+        }
         out.local(
             LocalState::Ok,
             "Nginx Uptime",
-            &format!("uptime={uptime:.0}"),
+            "uptime=0",
+            "Nginx status socket responding without loadMsec",
+        );
+    } else {
+        out.local(
+            LocalState::Ok,
+            "Nginx Uptime",
+            "uptime=0",
             "Nginx status socket responding",
         );
     }
@@ -359,6 +373,9 @@ fn pidof(runner: &CommandRunner, process_name: &str) -> Option<i64> {
 fn unix_socket_command(path: &str, command: &[u8]) -> Option<String> {
     let mut stream = UnixStream::connect(path).ok()?;
     stream.set_read_timeout(Some(Duration::from_secs(2))).ok()?;
+    stream
+        .set_write_timeout(Some(Duration::from_secs(2)))
+        .ok()?;
     stream.write_all(command).ok()?;
     let mut data = String::new();
     stream.read_to_string(&mut data).ok()?;
@@ -367,4 +384,30 @@ fn unix_socket_command(path: &str, command: &[u8]) -> Option<String> {
 
 fn unix_socket_http(path: &str, request: &[u8]) -> Option<String> {
     unix_socket_command(path, request)
+}
+
+fn split_http_response(response: &str) -> (Option<u16>, &str) {
+    let status = response
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .and_then(|code| code.parse::<u16>().ok());
+    let body = response
+        .split_once("\r\n\r\n")
+        .or_else(|| response.split_once("\n\n"))
+        .map(|(_, body)| body)
+        .unwrap_or(response);
+    (status, body)
+}
+
+fn nginx_uptime(json: &serde_json::Value) -> Option<f64> {
+    json.get("loadMsec")
+        .and_then(|value| value.as_f64())
+        .map(|start_msec| {
+            let now_msec = SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|duration| duration.as_millis() as f64)
+                .unwrap_or(start_msec);
+            ((now_msec - start_msec) / 1000.0).max(0.0)
+        })
 }
