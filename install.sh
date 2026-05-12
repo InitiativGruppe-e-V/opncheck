@@ -25,6 +25,50 @@ TAG="${LATEST#v}"
 ASSET="opncheck-${TAG}-x86_64-unknown-freebsd.tar.gz"
 URL="https://github.com/$REPO/releases/download/${LATEST}/${ASSET}"
 
+if [ ! -f "$INSTALL_DIR/opncheck" ]; then
+    echo "First-time install detected; performing one-time setup ..."
+
+    echo "Installing check_mk_agent and dependencies ..."
+    pkg install -y ipmitool libstatgrab bash wget check_mk_agent
+
+    SSH_DIR="/root/.ssh"
+    AUTHORIZED_KEYS="$SSH_DIR/authorized_keys"
+    if [ ! -d "$SSH_DIR" ]; then
+        mkdir -p "$SSH_DIR"
+        chmod 700 "$SSH_DIR"
+    fi
+    if [ ! -f "$AUTHORIZED_KEYS" ]; then
+        : > "$AUTHORIZED_KEYS"
+        chmod 644 "$AUTHORIZED_KEYS"
+    fi
+
+    if [ -r /dev/tty ]; then
+        KEY_INPUT_FD=/dev/tty
+    else
+        KEY_INPUT_FD=/dev/stdin
+    fi
+    printf "Paste the ssh-ed25519 public key of your Checkmk instance: " > /dev/tty 2>/dev/null || \
+        printf "Paste the ssh-ed25519 public key of your Checkmk instance: "
+    IFS= read -r CMK_PUBKEY < "$KEY_INPUT_FD" || CMK_PUBKEY=""
+
+    case "$CMK_PUBKEY" in
+        "ssh-ed25519 "*) ;;
+        *)
+            echo "Input does not look like an ssh-ed25519 public key; skipping key install."
+            CMK_PUBKEY=""
+            ;;
+    esac
+
+    if [ -n "$CMK_PUBKEY" ]; then
+        if grep -qF "$CMK_PUBKEY" "$AUTHORIZED_KEYS" 2>/dev/null; then
+            echo "Key already present in $AUTHORIZED_KEYS; not appending."
+        else
+            printf 'command="/usr/local/bin/check_mk_agent" %s\n' "$CMK_PUBKEY" >> "$AUTHORIZED_KEYS"
+            echo "Appended Checkmk key to $AUTHORIZED_KEYS"
+        fi
+    fi
+fi
+
 mkdir -p "$INSTALL_DIR" || true
 
 TMPDIR=$(mktemp -d)
