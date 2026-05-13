@@ -1,11 +1,11 @@
 use std::{collections::HashMap, path::Path};
 
+use super::{Check, utils};
 use crate::{
     agent::output::{AgentOutput, LocalState},
     config::Config,
     exec::CommandRunner,
 };
-use super::{utils, Check};
 
 pub struct Unbound;
 
@@ -14,15 +14,16 @@ impl Check for Unbound {
         "unbound"
     }
 
-    fn run(&self, out: &mut AgentOutput, _config: &Config, runner: &CommandRunner) {
+    fn run(&self, _config: &Config, runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
+        let mut out = AgentOutput::new();
         let Some(config_xml) = utils::read_opnsense_config() else {
-            return;
+            return Ok(out);
         };
         if !config_xml.unbound_enabled() {
-            return;
+            return Ok(out);
         }
         if !Path::new("/var/unbound/unbound.conf").exists() {
-            return;
+            return Ok(out);
         }
         let data = runner
             .run(
@@ -38,7 +39,7 @@ impl Check for Unbound {
                 "dns_successes=0|dns_recursion=0|dns_cachehits=0|dns_cachemiss=0|avg_response_time=0",
                 "Unbound not running",
             );
-            return;
+            return Ok(out);
         }
         let stats = data
             .lines()
@@ -58,5 +59,6 @@ impl Check for Unbound {
             ),
             "Unbound running",
         );
+        Ok(out)
     }
 }

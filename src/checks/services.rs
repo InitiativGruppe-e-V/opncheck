@@ -1,11 +1,11 @@
 use std::io::Write;
 
+use super::Check;
 use crate::{
     agent::output::{AgentOutput, LocalState},
     config::Config,
     exec::CommandRunner,
 };
-use super::Check;
 
 pub struct Services;
 
@@ -14,7 +14,8 @@ impl Check for Services {
         "services"
     }
 
-    fn run(&self, out: &mut AgentOutput, config: &Config, _runner: &CommandRunner) {
+    fn run(&self, config: &Config, _runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
+        let mut out = AgentOutput::new();
         let php = r#"<?php require_once("config.inc");require_once("system.inc");require_once("plugins.inc");require_once("util.inc"); foreach(plugins_services() as $_service) { printf("%s;%s;%s\n",$_service["name"],$_service["description"],service_status($_service));} ?>"#;
         let Ok(output) = std::process::Command::new("php")
             .stdin(std::process::Stdio::piped())
@@ -28,7 +29,7 @@ impl Check for Services {
                 child.wait_with_output()
             })
         else {
-            return;
+            return Ok(out);
         };
         let data = String::from_utf8_lossy(&output.stdout);
         let services = data
@@ -54,7 +55,7 @@ impl Check for Services {
             .map(|(_, description, running)| (description, running))
             .collect::<Vec<_>>();
         if services.is_empty() {
-            return;
+            return Ok(out);
         }
         let stopped = services
             .iter()
@@ -81,5 +82,6 @@ impl Check for Services {
                 &format!("Services: {} not running", stopped.join(", ")),
             );
         }
+        Ok(out)
     }
 }

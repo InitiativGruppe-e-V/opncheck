@@ -12,18 +12,19 @@ impl Check for Wireguard {
         "wireguard"
     }
 
-    fn run(&self, out: &mut AgentOutput, config: &Config, runner: &CommandRunner) {
+    fn run(&self, config: &Config, runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
+        let mut out = AgentOutput::new();
         let Some(config_xml) = utils::read_opnsense_config() else {
-            return;
+            return Ok(out);
         };
         if !config_xml.wireguard_enabled() {
-            return;
+            return Ok(out);
         }
         let data = runner
             .run("wg", ["show", "all", "dump"])
             .unwrap_or_default();
         if data.trim().is_empty() {
-            return;
+            return Ok(out);
         }
         out.section("local:sep(0)");
         let warn_secs = config.checks.wireguard.stale_warn_seconds;
@@ -54,6 +55,7 @@ impl Check for Wireguard {
                 &summary,
             );
         }
+        Ok(out)
     }
 }
 

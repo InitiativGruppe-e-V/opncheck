@@ -1,4 +1,6 @@
-use std::{fs, path::Path, time::SystemTime};
+use std::path::Path;
+
+use anyhow::bail;
 
 use super::Check;
 use crate::{
@@ -15,25 +17,22 @@ impl Check for Firmware {
         "firmware"
     }
 
-    fn run(&self, out: &mut AgentOutput, _config: &Config, _runner: &CommandRunner) {
+    fn run(&self, _config: &Config, _runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
         let core_path = Path::new("/usr/local/opnsense/version/core");
         if !core_path.exists() {
-            return;
+            bail!("Did not find version check path");
         }
+        let mut out = AgentOutput::new();
         let core = opnsense_data::read_core_version(core_path);
         let current = core.product_version.unwrap_or_else(|| "unknown".to_owned());
-        let age = fs::metadata("/conf/config.xml")
-            .and_then(|metadata| metadata.modified())
-            .ok()
-            .and_then(|modified| SystemTime::now().duration_since(modified).ok())
-            .map(|duration| duration.as_secs())
-            .unwrap_or(0);
+
         out.section("local:sep(0)");
         out.local(
             LocalState::Ok,
             "OPNsense Firmware",
-            &format!("update_available=0|apply_finish_time={age}"),
+            &format!("update_available=0"),
             &format!("Version {current}"),
         );
+        Ok(out)
     }
 }

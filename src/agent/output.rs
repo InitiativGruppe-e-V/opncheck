@@ -1,3 +1,5 @@
+use std::ops::AddAssign;
+
 #[derive(Debug, Default)]
 pub struct AgentOutput {
     lines: Vec<String>,
@@ -23,7 +25,7 @@ impl AgentOutput {
         self.lines.push(line.into());
     }
 
-    pub fn lines<I, S>(&mut self, lines: I)
+    pub fn extend<I, S>(&mut self, lines: I)
     where
         I: IntoIterator<Item = S>,
         S: Into<String>,
@@ -52,6 +54,12 @@ impl AgentOutput {
     pub fn finish(mut self) -> String {
         self.lines.push(String::new());
         self.lines.join("\n")
+    }
+}
+
+impl AddAssign for AgentOutput {
+    fn add_assign(&mut self, rhs: Self) {
+        self.extend(rhs.lines);
     }
 }
 

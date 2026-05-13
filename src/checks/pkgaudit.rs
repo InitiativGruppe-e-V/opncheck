@@ -1,9 +1,9 @@
+use super::Check;
 use crate::{
     agent::output::{AgentOutput, LocalState},
     config::Config,
     exec::CommandRunner,
 };
-use super::Check;
 
 pub struct PkgAudit;
 
@@ -12,19 +12,20 @@ impl Check for PkgAudit {
         "pkgaudit"
     }
 
-    fn run(&self, out: &mut AgentOutput, _config: &Config, runner: &CommandRunner) {
+    fn run(&self, _config: &Config, runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
+        let mut out = AgentOutput::new();
         let data = runner
             .run("pkg", ["audit", "-F", "--raw=json-compact", "-q"])
             .unwrap_or_default();
         out.section("local:sep(0)");
         let Ok(json) = serde_json::from_str::<serde_json::Value>(&data) else {
             out.local(LocalState::Ok, "OPNsense Package Audit", "issues=0", "OK");
-            return;
+            return Ok(out);
         };
         let vulns = json.get("pkg_count").and_then(|v| v.as_u64()).unwrap_or(0);
         if vulns == 0 {
             out.local(LocalState::Ok, "OPNsense Package Audit", "issues=0", "OK");
-            return;
+            return Ok(out);
         }
         let packages = json
             .get("packages")
@@ -37,5 +38,6 @@ impl Check for PkgAudit {
             &format!("issues={vulns}"),
             &format!("Pkg: {packages} vulnerable"),
         );
+        Ok(out)
     }
 }

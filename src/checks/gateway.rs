@@ -15,13 +15,16 @@ use super::Check;
 
 pub struct Gateway;
 
-impl Gateway {
-    pub fn do_check(out: &mut AgentOutput, runner: &CommandRunner) -> Result<(), String> {
-        let status = runner
-            .run("configctl", ["interface", "gateways", "status"])
-            .map_err(|e| e.to_string())?;
+impl Check for Gateway {
+    fn name(&self) -> &'static str {
+        "gateway"
+    }
 
-        let response: GatewayResponse = serde_json::from_str(&status).map_err(|e| e.to_string())?;
+    fn run(&self, _config: &Config, runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
+        let mut out = AgentOutput::new();
+
+        let status = runner.run("configctl", ["interface", "gateways", "status"])?;
+        let response: GatewayResponse = serde_json::from_str(&status)?;
 
         for gateway in response.0 {
             let GatewayInfo {
@@ -41,29 +44,12 @@ impl Gateway {
             out.local(
                 state,
                 &format!("Gateway {name}"),
-                &format!("addr={address}|rtt={delay}|rttsd={stddev}|loss={loss}"),
+                &format!("addr={address}|rtt={delay}ms|rttsd={stddev}ms|loss={loss}"),
                 &status.to_string(),
             );
         }
 
-        Ok(())
-    }
-}
-
-impl Check for Gateway {
-    fn name(&self) -> &'static str {
-        "gateway"
-    }
-
-    fn run(&self, out: &mut AgentOutput, _config: &Config, runner: &CommandRunner) {
-        if let Err(e) = Self::do_check(out, runner) {
-            out.local(
-                LocalState::Crit,
-                "Gateway Check",
-                "",
-                &format!("Error: {e}"),
-            );
-        }
+        Ok(out)
     }
 }
 

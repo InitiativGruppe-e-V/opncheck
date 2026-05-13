@@ -2,7 +2,6 @@ use std::{collections::BTreeMap, fs, path::Path};
 
 use serde::Deserialize;
 
-mod dhcpd;
 mod enabled;
 mod gateways;
 mod haproxy;
@@ -14,7 +13,6 @@ mod system;
 mod unbound;
 mod wireguard;
 
-pub use dhcpd::DhcpdSection;
 pub use enabled::{EnabledFlag, LegacyEnable, MvcGeneral};
 pub use gateways::{GatewayItem, Gateways};
 pub use haproxy::HaproxySection;
@@ -32,7 +30,6 @@ pub struct OpnsenseConfig {
     pub system: System,
     #[serde(default)]
     pub interfaces: BTreeMap<String, Interface>,
-    pub dhcpd: Option<DhcpdSection>,
     pub ipsec: Option<IpsecSection>,
     pub unbound: Option<UnboundSection>,
     #[serde(rename = "OPNsense")]
@@ -40,10 +37,6 @@ pub struct OpnsenseConfig {
 }
 
 impl OpnsenseConfig {
-    pub fn has_dhcp(&self) -> bool {
-        self.dhcpd.is_some()
-    }
-
     pub fn has_gateways(&self) -> bool {
         self.opnsense
             .as_ref()

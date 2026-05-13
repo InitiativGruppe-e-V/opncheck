@@ -1,11 +1,11 @@
 use std::{path::Path, time::SystemTime};
 
+use super::{Check, utils};
 use crate::{
     agent::output::{AgentOutput, LocalState},
     config::Config,
     exec::CommandRunner,
 };
-use super::{utils, Check};
 
 pub struct Nginx;
 
@@ -14,15 +14,16 @@ impl Check for Nginx {
         "nginx"
     }
 
-    fn run(&self, out: &mut AgentOutput, _config: &Config, _runner: &CommandRunner) {
+    fn run(&self, _config: &Config, _runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
+        let mut out = AgentOutput::new();
         let Some(config_xml) = utils::read_opnsense_config() else {
-            return;
+            return Ok(out);
         };
         if !config_xml.nginx_enabled() {
-            return;
+            return Ok(out);
         }
         if !Path::new("/var/run/nginx_status.sock").exists() {
-            return;
+            return Ok(out);
         }
         let Some(response) = utils::unix_socket_http(
             "/var/run/nginx_status.sock",
@@ -34,12 +35,12 @@ impl Check for Nginx {
                 b"GET / HTTP/1.1\r\nHost: nginx\r\nConnection: close\r\n\r\n",
             )
         }) else {
-            return;
+            return Ok(out);
         };
 
         let (status, body) = utils::split_http_response(&response);
         if !matches!(status, Some(200..=299) | None) {
-            return;
+            return Ok(out);
         }
 
         out.section("local:sep(0)");
@@ -51,7 +52,7 @@ impl Check for Nginx {
                     &format!("uptime={uptime:.0}"),
                     "Nginx VTS status socket responding",
                 );
-                return;
+                return Ok(out);
             }
             out.local(
                 LocalState::Ok,
@@ -59,6 +60,7 @@ impl Check for Nginx {
                 "uptime=0",
                 "Nginx status socket responding without loadMsec",
             );
+            return Ok(out);
         } else {
             out.local(
                 LocalState::Ok,
@@ -66,6 +68,7 @@ impl Check for Nginx {
                 "uptime=0",
                 "Nginx status socket responding",
             );
+            return Ok(out);
         }
     }
 }
