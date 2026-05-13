@@ -51,6 +51,8 @@ pub fn collect_all(config: &Config, runner: &CommandRunner) -> AgentOutput {
         }
     }
 
+    collect.section("local:sep(0)");
+
     if check_errors.is_empty() {
         collect.local(
             LocalState::Ok,
