@@ -4,9 +4,7 @@ use serde::Deserialize;
 
 mod enabled;
 mod gateways;
-mod haproxy;
 mod interfaces;
-mod ipsec;
 mod nginx;
 mod opnsense_section;
 mod system;
@@ -15,9 +13,7 @@ mod wireguard;
 
 pub use enabled::{EnabledFlag, LegacyEnable, MvcGeneral};
 pub use gateways::{GatewayItem, Gateways};
-pub use haproxy::HaproxySection;
 pub use interfaces::Interface;
-pub use ipsec::IpsecSection;
 pub use nginx::NginxSection;
 pub use opnsense_section::OPNsenseSection;
 pub use system::System;
@@ -30,7 +26,6 @@ pub struct OpnsenseConfig {
     pub system: System,
     #[serde(default)]
     pub interfaces: BTreeMap<String, Interface>,
-    pub ipsec: Option<IpsecSection>,
     pub unbound: Option<UnboundSection>,
     #[serde(rename = "OPNsense")]
     pub opnsense: Option<OPNsenseSection>,
@@ -57,26 +52,12 @@ impl OpnsenseConfig {
                 .is_some_and(MvcGeneral::is_explicitly_disabled)
     }
 
-    pub fn haproxy_enabled(&self) -> bool {
-        self.opnsense
-            .as_ref()
-            .and_then(|opnsense| opnsense.haproxy.as_ref())
-            .and_then(|haproxy| haproxy.general.as_ref())
-            .is_some_and(MvcGeneral::is_enabled_or_present)
-    }
-
     pub fn nginx_enabled(&self) -> bool {
         self.opnsense
             .as_ref()
             .and_then(|opnsense| opnsense.nginx.as_ref())
             .and_then(|nginx| nginx.general.as_ref())
             .is_some_and(MvcGeneral::is_enabled_or_present)
-    }
-
-    pub fn ipsec_enabled(&self) -> bool {
-        self.ipsec
-            .as_ref()
-            .is_some_and(IpsecSection::is_enabled_or_present)
     }
 
     pub fn wireguard_enabled(&self) -> bool {

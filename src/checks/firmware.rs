@@ -1,13 +1,10 @@
-use std::path::Path;
-
-use anyhow::bail;
+use anyhow::anyhow;
 
 use super::Check;
 use crate::{
     agent::output::{AgentOutput, LocalState},
     config::Config,
     exec::CommandRunner,
-    opnsense as opnsense_data,
 };
 
 pub struct Firmware;
@@ -17,22 +14,46 @@ impl Check for Firmware {
         "firmware"
     }
 
-    fn run(&self, _config: &Config, _runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
-        let core_path = Path::new("/usr/local/opnsense/version/core");
-        if !core_path.exists() {
-            bail!("Did not find version check path");
-        }
+    fn run(&self, _config: &Config, runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
         let mut out = AgentOutput::new();
-        let core = opnsense_data::read_core_version(core_path);
-        let current = core.product_version.unwrap_or_else(|| "unknown".to_owned());
-
         out.section("local:sep(0)");
+
+        let response = runner.run("configctl", ["firmware", "status"])?;
+
+        let mut version: Option<&str> = None;
+        let mut updates: Option<u64> = None;
+        for line in response.lines() {
+            if let Some(rest) = line.strip_prefix("Currently running OPNsense ") {
+                version = rest.split_whitespace().next();
+            }
+            if let Ok((n, _)) =
+                sscanf::sscanf!(line, "Checking for upgrades ({u64} candidates): {str}")
+            {
+                updates = Some(n);
+            }
+        }
+
+        let version = version.ok_or_else(|| anyhow!("could not parse current OPNsense version"))?;
+        let updates = updates.ok_or_else(|| anyhow!("could not parse upgrade candidate count"))?;
+
+        let state = if updates == 0 {
+            LocalState::Ok
+        } else {
+            LocalState::Warn
+        };
+        let summary = if updates == 0 {
+            format!("Version {version}, up to date")
+        } else {
+            format!("Version {version}, {updates} update(s) available")
+        };
+
         out.local(
-            LocalState::Ok,
+            state,
             "OPNsense Firmware",
-            &format!("update_available=0"),
-            &format!("Version {current}"),
+            &format!("updates={updates}"),
+            &summary,
         );
+
         Ok(out)
     }
 }

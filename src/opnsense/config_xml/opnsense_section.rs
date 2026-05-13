@@ -1,7 +1,6 @@
 use serde::Deserialize;
 
 use super::gateways::Gateways;
-use super::haproxy::HaproxySection;
 use super::nginx::NginxSection;
 use super::unbound::UnboundPlusSection;
 use super::wireguard::WireguardSection;
@@ -11,8 +10,6 @@ use super::wireguard::WireguardSection;
 pub struct OPNsenseSection {
     #[serde(rename = "Gateways")]
     pub gateways: Option<Gateways>,
-    #[serde(rename = "HAProxy")]
-    pub haproxy: Option<HaproxySection>,
     #[serde(rename = "Nginx")]
     pub nginx: Option<NginxSection>,
     pub wireguard: Option<WireguardSection>,
