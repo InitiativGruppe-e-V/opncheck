@@ -50,8 +50,8 @@ impl Check for Gateway {
             out.add(
                 state,
                 &format!("Gateway {name}"),
-                &format!("addr={address}|rtt={delay}ms|rttsd={stddev}ms|loss={loss}"),
-                &status.to_string(),
+                &format!("rtt={delay}ms|rttsd={stddev}ms|loss={loss}"),
+                &format!("{status}, -> {address}, RTT {delay}ms"),
             );
         }
 

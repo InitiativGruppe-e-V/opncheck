@@ -64,12 +64,14 @@ pub fn collect_all(
 
     let mut status = LocalSection::new();
 
+    let version = env!("CARGO_PKG_VERSION");
+
     if check_errors.is_empty() {
         status.add(
             LocalState::Ok,
             "OPNCheck Status",
             "status=ok",
-            "All checks completed succesfully",
+            &format!("{version}: All checks completed succesfully",),
         );
     } else {
         let errors: Vec<String> = check_errors
@@ -77,7 +79,7 @@ pub fn collect_all(
             .map(|(k, v)| format!("{k}: {v}"))
             .collect();
         let errors = errors.join("\n");
-        let err_string = format!("Errors occurred during the following checks: \n{errors}");
+        let err_string = format!("{version}: Errors occurred during some checks: \n{errors}");
         status.add(
             LocalState::Crit,
             "OPNCheck Status",

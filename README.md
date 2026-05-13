@@ -28,12 +28,18 @@ The installer is intentionally small. On a first install it:
 - creates `/root/.ssh/authorized_keys2` if needed
 - asks for the Checkmk site's `ssh-ed25519` public key
 - adds that key with a forced `/usr/local/bin/check_mk_agent` command
+- asks whether to enable daily `opncheck` auto-updates
 
 On every run it downloads the latest release archive, installs the `opncheck`
 binary to `/usr/local/bin/opncheck`, links it into
 `/usr/local/lib/check_mk_agent/plugins/opncheck`, and creates
 `/usr/local/etc/opncheck.toml` from the example configuration if it does not
 already exist.
+
+If daily auto-updates are enabled during first install, the installer creates
+`/usr/local/etc/periodic/daily/810.opncheck-update`. The periodic job checks
+the latest GitHub release, compares it with `opncheck --version`, and replaces
+the binary only when a newer release exists.
 
 To test the plugin directly:
 
