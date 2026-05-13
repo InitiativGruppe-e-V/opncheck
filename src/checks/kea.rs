@@ -23,6 +23,7 @@ impl Check for Kea {
 
     fn run(&self, _config: &Config, _runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
         let mut out = AgentOutput::new();
+        out.section("local:sep(0)");
 
         let client = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(2))
@@ -31,7 +32,7 @@ impl Check for Kea {
 
         // Kea may be disabled; treat connection errors as a no-op check.
         let Ok(response) = client.post(KEA_URL).json(&body).send() else {
-            return Ok(out);
+            return Ok(AgentOutput::new());
         };
 
         let response: Vec<KeaResponseItem> = response.json()?;

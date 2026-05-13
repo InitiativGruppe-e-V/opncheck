@@ -22,6 +22,7 @@ impl Check for Gateway {
 
     fn run(&self, _config: &Config, runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
         let mut out = AgentOutput::new();
+        out.section("local:sep(0)");
 
         let status = runner.run("configctl", ["interface", "gateways", "status"])?;
         let response: GatewayResponse = serde_json::from_str(&status)?;
