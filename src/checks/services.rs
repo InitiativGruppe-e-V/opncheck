@@ -81,7 +81,8 @@ fn is_ignored(config: &Config, service_name: &str) -> bool {
     let service_name = service_name.to_lowercase();
     config
         .checks
-        .services_ignored
+        .services
+        .ignored
         .iter()
         .any(|ignored| service_name.contains(&ignored.to_lowercase()))
 }

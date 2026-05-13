@@ -2,10 +2,11 @@
 # OPNsense plugin checks can be disabled here.
 # Example: skip = ["wireguard"]
 skip = []
+
+[checks.services]
 # Services whose names contain these strings (case-insensitive) are ignored.
 # Default: ["iperf"] — matches iperf, iperf3, etc.
-services_ignored = ["iperf"]
-inventory_interval_seconds = 14400
+ignored = ["iperf"]
 
 [checks.wireguard]
 # Seconds since the last WireGuard handshake before alerting.
@@ -14,10 +15,7 @@ stale_warn_seconds = 300
 stale_crit_seconds = 900
 
 [security]
-# Keep this enabled in production. Plugin/local/spool files must be regular,
-# root-owned, and not group/world-writable.
-require_safe_paths = true
-max_spool_file_bytes = 1048576
+# Keep this enabled in production. Timeouts protect CheckMK from failing the check repeatedly.
 plugin_timeout_seconds = 60
 command_timeout_seconds = 30
 

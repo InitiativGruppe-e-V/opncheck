@@ -26,9 +26,8 @@ jobs:
 
       - name: Package release
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p dist
-          cp target/x86_64-unknown-freebsd/release/opncheck "dist/opncheck-${VERSION}-x86_64-unknown-freebsd"
+          cp target/x86_64-unknown-freebsd/release/opncheck "dist/opncheck-x86_64-unknown-freebsd"
           cp opncheck.example.toml dist/opncheck.example.toml
           cp install.sh dist/install.sh
 

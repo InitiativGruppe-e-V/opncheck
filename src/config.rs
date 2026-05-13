@@ -21,9 +21,14 @@ pub struct Paths {}
 #[serde(default)]
 pub struct Checks {
     pub skip: BTreeSet<String>,
-    pub services_ignored: BTreeSet<String>,
-    pub inventory_interval_seconds: u64,
+    pub services: Services,
     pub wireguard: Wireguard,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Services {
+    pub ignored: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,9 +58,16 @@ impl Default for Checks {
     fn default() -> Self {
         Self {
             skip: BTreeSet::new(),
-            services_ignored: BTreeSet::from(["iperf".to_owned()]),
-            inventory_interval_seconds: 14_400,
+            services: Services::default(),
             wireguard: Wireguard::default(),
+        }
+    }
+}
+
+impl Default for Services {
+    fn default() -> Self {
+        Self {
+            ignored: BTreeSet::from(["iperf".to_owned()]),
         }
     }
 }
