@@ -34,15 +34,14 @@ command:
 
 On every run, `opncheck setup` installs the `opncheck` binary to
 `/usr/local/bin/opncheck`, links it into
-`/usr/local/lib/check_mk_agent/plugins/opncheck`, and creates
-`/usr/local/etc/opncheck.toml` from the embedded example configuration if it
-does not already exist.
+`/usr/local/lib/check_mk_agent/plugins/opncheck`, and creates a default
+`/usr/local/etc/opncheck.toml` if it does not already exist.
 
 If auto-updates are enabled during first install, plugin execution checks the
 latest GitHub release at the configured interval, compares it with
 `opncheck --version`, and replaces the binary only when a newer release exists.
-The default interval is 6 hours. Update failures are reported in the
-`OPNCheck Status` local check while normal monitoring output continues.
+The default interval is 6 hours. Update state and failures are reported in the
+`OPNCheck Version` local check while normal monitoring output continues.
 
 To test the plugin directly:
 

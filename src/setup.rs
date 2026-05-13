@@ -1,5 +1,5 @@
 use std::{
-    fs::{self, OpenOptions},
+    fs::{self, File, OpenOptions},
     io::{self, BufRead, Write},
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
@@ -8,12 +8,13 @@ use std::{
 
 use anyhow::{Context, Result};
 
+use crate::{config::Config, install};
+
 const INSTALL_PATH: &str = "/usr/local/bin/opncheck";
 const PLUGIN_PATH: &str = "/usr/local/lib/check_mk_agent/plugins/opncheck";
 const SSH_DIR: &str = "/root/.ssh";
 const AUTHORIZED_KEYS: &str = "/root/.ssh/authorized_keys2";
 const CHECKMK_AGENT: &str = "/usr/local/bin/check_mk_agent";
-const EXAMPLE_CONFIG: &str = include_str!("../opncheck.example.toml");
 
 pub fn run(config_path: &Path) -> Result<()> {
     let first_install = !Path::new(INSTALL_PATH).exists();
@@ -45,31 +46,16 @@ fn install_binary() -> Result<()> {
         return Ok(());
     }
 
-    let parent = destination
-        .parent()
-        .context("install path has no parent directory")?;
-    fs::create_dir_all(parent)
-        .with_context(|| format!("failed to create install directory {}", parent.display()))?;
+    let source_file =
+        File::open(&source).with_context(|| format!("failed to open {}", source.display()))?;
+    install::replace_with_reader(
+        destination,
+        source_file,
+        "running opncheck binary was empty",
+    )
+    .with_context(|| format!("failed to install {INSTALL_PATH}"))?;
 
-    let temp_path =
-        destination.with_file_name(format!(".opncheck.setup.{}.new", std::process::id()));
-    fs::copy(&source, &temp_path).with_context(|| {
-        format!(
-            "failed to copy {} to {}",
-            source.display(),
-            temp_path.display()
-        )
-    })?;
-    fs::set_permissions(&temp_path, fs::Permissions::from_mode(0o755))
-        .with_context(|| format!("failed to set executable mode on {}", temp_path.display()))?;
-
-    match fs::rename(&temp_path, destination) {
-        Ok(()) => Ok(()),
-        Err(err) => {
-            let _ = fs::remove_file(&temp_path);
-            Err(err).with_context(|| format!("failed to install {INSTALL_PATH}"))
-        }
-    }
+    Ok(())
 }
 
 fn install_plugin_symlink() -> Result<()> {
@@ -206,11 +192,9 @@ fn install_config(config_path: &Path, enable_updates: bool) -> Result<()> {
     fs::create_dir_all(parent)
         .with_context(|| format!("failed to create config directory {}", parent.display()))?;
 
-    let config = if enable_updates {
-        EXAMPLE_CONFIG.replace("enabled = false", "enabled = true")
-    } else {
-        EXAMPLE_CONFIG.to_owned()
-    };
+    let mut config = Config::default();
+    config.updates.enabled = enable_updates;
+    let config = toml::to_string_pretty(&config).context("failed to serialize config")?;
 
     fs::write(config_path, config)
         .with_context(|| format!("failed to write config {}", config_path.display()))?;
@@ -231,5 +215,32 @@ fn canonicalize_if_exists(path: &Path) -> Result<Option<PathBuf>> {
         Ok(path) => Ok(Some(path)),
         Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
         Err(err) => Err(err).with_context(|| format!("failed to inspect {}", path.display())),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generated_config_enables_updates_when_requested() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config_path = temp_dir.path().join("opncheck.toml");
+
+        install_config(&config_path, true).unwrap();
+
+        let config = Config::load(&config_path).unwrap();
+        assert!(config.updates.enabled);
+    }
+
+    #[test]
+    fn generated_config_keeps_updates_disabled_by_default() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config_path = temp_dir.path().join("opncheck.toml");
+
+        install_config(&config_path, false).unwrap();
+
+        let config = Config::load(&config_path).unwrap();
+        assert!(!config.updates.enabled);
     }
 }

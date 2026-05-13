@@ -44,7 +44,6 @@ pub fn collect_all(
     config: &Config,
     opnsense_config: &OpnsenseConfig,
     runner: &CommandRunner,
-    status_warning: Option<&str>,
 ) -> Vec<LocalSection> {
     let mut check_errors = HashMap::new();
     let mut sections = Vec::new();
@@ -65,36 +64,20 @@ pub fn collect_all(
 
     let mut status = LocalSection::new();
 
-    let version = env!("CARGO_PKG_VERSION");
-
-    if check_errors.is_empty() && status_warning.is_none() {
+    if check_errors.is_empty() {
         status.add(
             LocalState::Ok,
             "OPNCheck Status",
             "status=ok",
-            &format!("{version}: All checks completed succesfully",),
-        );
-    } else if check_errors.is_empty() {
-        status.add(
-            LocalState::Warn,
-            "OPNCheck Status",
-            "status=warn",
-            &format!(
-                "{version}: Warning occurred during plugin execution: {}",
-                status_warning.unwrap_or("unknown warning")
-            ),
+            "All checks completed successfully",
         );
     } else {
         let errors: Vec<String> = check_errors
             .iter()
             .map(|(k, v)| format!("{k}: {v}"))
             .collect();
-        let mut errors = errors.join("\n");
-        if let Some(warning) = status_warning {
-            errors.push_str("\n");
-            errors.push_str(warning);
-        }
-        let err_string = format!("{version}: Errors occurred during some checks: \n{errors}");
+        let errors = errors.join("\n");
+        let err_string = format!("Errors occurred during some checks: \n{errors}");
         status.add(
             LocalState::Crit,
             "OPNCheck Status",

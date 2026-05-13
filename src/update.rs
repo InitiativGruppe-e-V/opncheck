@@ -1,17 +1,17 @@
 use std::{
     cmp::Ordering,
-    fs::{self, File},
-    io,
-    os::unix::fs::PermissionsExt,
-    path::{Path, PathBuf},
+    fs,
+    path::Path,
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result, anyhow};
+use jiff::{Timestamp, tz::TimeZone};
 use reqwest::blocking::Client;
+use semver::Version;
 use serde::Deserialize;
 
-use crate::config::Config;
+use crate::{config::Config, install};
 
 const REPO: &str = "initiativgruppe-e-v/opncheck";
 const INSTALL_PATH: &str = "/usr/local/bin/opncheck";
@@ -59,6 +59,18 @@ pub fn check_and_update(config_path: &Path, config: &mut Config) -> Result<Updat
     }
 }
 
+pub fn next_check_summary(config: &Config) -> Option<String> {
+    let next_check_unix = next_check_unix(config)?;
+    let timestamp = i64::try_from(next_check_unix).ok()?;
+    let timestamp = Timestamp::from_second(timestamp).ok()?;
+    Some(
+        timestamp
+            .to_zoned(TimeZone::UTC)
+            .strftime("%Y-%m-%d %H:%M:%S UTC")
+            .to_string(),
+    )
+}
+
 fn perform_update() -> Result<UpdateOutcome> {
     let current = env!("CARGO_PKG_VERSION").to_owned();
     let client = Client::builder()
@@ -77,7 +89,7 @@ fn perform_update() -> Result<UpdateOutcome> {
         .json()
         .context("failed to parse latest release metadata")?;
 
-    let latest = release.tag_name.trim_start_matches('v').to_owned();
+    let latest = clean_version(&release.tag_name)?;
     if compare_versions(&current, &latest)? != Ordering::Less {
         return Ok(UpdateOutcome::UpToDate);
     }
@@ -102,18 +114,25 @@ fn perform_update() -> Result<UpdateOutcome> {
     })
 }
 
-fn download_and_replace(client: &Client, url: &str, destination: &Path) -> Result<()> {
-    let destination_dir = destination
-        .parent()
-        .ok_or_else(|| anyhow!("install destination has no parent directory"))?;
-    fs::create_dir_all(destination_dir).with_context(|| {
-        format!(
-            "failed to create install directory {}",
-            destination_dir.display()
-        )
-    })?;
+fn next_check_unix(config: &Config) -> Option<u64> {
+    if !config.updates.enabled {
+        return None;
+    }
 
-    let temp_path = temp_update_path(destination);
+    if config.updates.interval_seconds == 0 {
+        return now_unix().ok();
+    }
+
+    Some(
+        config
+            .updates
+            .last_checked_unix
+            .unwrap_or_else(|| now_unix().unwrap_or(0))
+            .saturating_add(config.updates.interval_seconds),
+    )
+}
+
+fn download_and_replace(client: &Client, url: &str, destination: &Path) -> Result<()> {
     let mut response = client
         .get(url)
         .send()
@@ -121,32 +140,13 @@ fn download_and_replace(client: &Client, url: &str, destination: &Path) -> Resul
         .error_for_status()
         .with_context(|| format!("download request failed for {url}"))?;
 
-    let mut temp_file = File::create(&temp_path)
-        .with_context(|| format!("failed to create {}", temp_path.display()))?;
-    let bytes = io::copy(&mut response, &mut temp_file)
-        .with_context(|| format!("failed to write {}", temp_path.display()))?;
-    drop(temp_file);
-    if bytes == 0 {
-        let _ = fs::remove_file(&temp_path);
-        bail!("downloaded update asset was empty");
-    }
+    install::replace_with_reader(
+        destination,
+        &mut response,
+        "downloaded update asset was empty",
+    )?;
 
-    fs::set_permissions(&temp_path, fs::Permissions::from_mode(0o755))
-        .with_context(|| format!("failed to set executable mode on {}", temp_path.display()))?;
-
-    match fs::rename(&temp_path, destination) {
-        Ok(()) => Ok(()),
-        Err(err) => {
-            let _ = fs::remove_file(&temp_path);
-            Err(err).with_context(|| {
-                format!(
-                    "failed to replace {} with {}",
-                    destination.display(),
-                    temp_path.display()
-                )
-            })
-        }
-    }
+    Ok(())
 }
 
 fn is_check_due(config: &Config) -> Result<bool> {
@@ -182,45 +182,26 @@ fn now_unix() -> Result<u64> {
         .as_secs())
 }
 
-fn temp_update_path(destination: &Path) -> PathBuf {
-    let pid = std::process::id();
-    destination.with_file_name(format!(".opncheck.{pid}.new"))
-}
-
 fn release_asset_name(version: &str) -> String {
     format!("opncheck-{version}-{TARGET}")
 }
 
 fn compare_versions(left: &str, right: &str) -> Result<Ordering> {
-    let left = parse_version(left)?;
-    let right = parse_version(right)?;
-    let len = left.len().max(right.len());
+    let left = Version::parse(&clean_version(left)?)
+        .with_context(|| format!("invalid current version {left:?}"))?;
+    let right = Version::parse(&clean_version(right)?)
+        .with_context(|| format!("invalid latest version {right:?}"))?;
 
-    for idx in 0..len {
-        let left_part = left.get(idx).copied().unwrap_or(0);
-        let right_part = right.get(idx).copied().unwrap_or(0);
-        match left_part.cmp(&right_part) {
-            Ordering::Equal => {}
-            ordering => return Ok(ordering),
-        }
-    }
-
-    Ok(Ordering::Equal)
+    Ok(left.cmp(&right))
 }
 
-fn parse_version(version: &str) -> Result<Vec<u64>> {
-    let version = version.trim_start_matches('v');
+fn clean_version(version: &str) -> Result<String> {
+    let version = version.trim_start_matches('v').to_owned();
     if version.is_empty() {
-        bail!("empty version");
+        anyhow::bail!("empty version");
     }
 
-    version
-        .split('.')
-        .map(|part| {
-            part.parse::<u64>()
-                .with_context(|| format!("invalid numeric version segment {part:?} in {version:?}"))
-        })
-        .collect()
+    Ok(version)
 }
 
 #[cfg(test)]
@@ -230,11 +211,24 @@ mod tests {
     #[test]
     fn compares_dotted_versions() {
         assert_eq!(compare_versions("0.2.0", "0.2.1").unwrap(), Ordering::Less);
-        assert_eq!(compare_versions("v0.2.0", "0.2").unwrap(), Ordering::Equal);
+        assert_eq!(
+            compare_versions("v0.2.0", "0.2.0").unwrap(),
+            Ordering::Equal
+        );
         assert_eq!(
             compare_versions("0.10.0", "0.9.9").unwrap(),
             Ordering::Greater
         );
+        assert_eq!(
+            compare_versions("0.2.0-alpha.1", "0.2.0").unwrap(),
+            Ordering::Less
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_versions() {
+        assert!(compare_versions("0.2.0", "0.2").is_err());
+        assert!(compare_versions("0.2.0", "not-a-version").is_err());
     }
 
     #[test]
@@ -253,5 +247,25 @@ mod tests {
             check_and_update(Path::new("/no/such/config.toml"), &mut config).unwrap(),
             UpdateOutcome::Disabled
         );
+    }
+
+    #[test]
+    fn formats_next_update_check_in_utc() {
+        let mut config = Config::default();
+        config.updates.enabled = true;
+        config.updates.interval_seconds = 21_600;
+        config.updates.last_checked_unix = Some(0);
+
+        assert_eq!(
+            next_check_summary(&config).unwrap(),
+            "1970-01-01 06:00:00 UTC"
+        );
+    }
+
+    #[test]
+    fn disabled_updates_have_no_next_check() {
+        let config = Config::default();
+
+        assert_eq!(next_check_summary(&config), None);
     }
 }
