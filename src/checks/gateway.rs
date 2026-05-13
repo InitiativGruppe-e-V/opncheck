@@ -33,12 +33,15 @@ impl Gateway {
                 stddev,
             } = gateway;
 
+            let delay = delay.as_millis_f64();
+            let stddev = stddev.as_millis_f64();
+
             let state = LocalState::from(status);
 
             out.local(
                 state,
                 &format!("Gateway {name}"),
-                &format!("addr={address}|rtt={delay:#}|rttsd={stddev:#}|loss={loss}"),
+                &format!("addr={address}|rtt={delay}|rttsd={stddev}|loss={loss}"),
                 &status.to_string(),
             );
         }
