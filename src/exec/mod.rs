@@ -9,6 +9,27 @@ pub struct CommandRunner {
     default_timeout: Duration,
 }
 
+#[derive(Debug)]
+pub struct CommandOutput {
+    stdout: String,
+    stderr: String,
+    success: bool,
+}
+
+impl CommandOutput {
+    pub fn stdout(&self) -> &str {
+        &self.stdout
+    }
+
+    pub fn stderr(&self) -> &str {
+        &self.stderr
+    }
+
+    pub fn success(&self) -> bool {
+        self.success
+    }
+}
+
 impl CommandRunner {
     pub fn new(default_timeout_seconds: u64) -> Self {
         Self {
@@ -29,6 +50,31 @@ impl CommandRunner {
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
     {
+        let output = self.run_timeout_output(program, args, _timeout)?;
+        if !output.success() {
+            return Ok(String::new());
+        }
+        Ok(output.stdout)
+    }
+
+    pub fn run_output<I, S>(&self, program: &str, args: I) -> Result<CommandOutput>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        self.run_timeout_output(program, args, self.default_timeout)
+    }
+
+    pub fn run_timeout_output<I, S>(
+        &self,
+        program: &str,
+        args: I,
+        _timeout: Duration,
+    ) -> Result<CommandOutput>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
         // The plugin path uses std::process to avoid pulling an async runtime into agent execution.
         // The timeout is kept in the API so the server/task scheduler can switch to tokio later.
         let output = Command::new(program)
@@ -39,10 +85,11 @@ impl CommandRunner {
             )
             .output()
             .with_context(|| format!("failed to execute {program}"))?;
-        if !output.status.success() {
-            return Ok(String::new());
-        }
-        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+        Ok(CommandOutput {
+            stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+            success: output.status.success(),
+        })
     }
 
     pub fn run_path(&self, program: &std::path::Path, timeout_seconds: u64) -> Result<String> {

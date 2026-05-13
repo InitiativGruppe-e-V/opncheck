@@ -55,7 +55,7 @@ pub fn collect_all(config: &Config, runner: &CommandRunner) -> AgentOutput {
         collect.local(
             LocalState::Ok,
             "OPNCheck Status",
-            "",
+            "status=ok",
             "All checks completed succesfully",
         );
     } else {
@@ -65,7 +65,12 @@ pub fn collect_all(config: &Config, runner: &CommandRunner) -> AgentOutput {
             .collect();
         let errors = errors.join("\n");
         let err_string = format!("Errors occurred during the following checks: \n{errors}");
-        collect.local(LocalState::Crit, "OPNCheck Status", "", &err_string);
+        collect.local(
+            LocalState::Crit,
+            "OPNCheck Status",
+            "status=err",
+            &err_string,
+        );
     }
     collect
 }
