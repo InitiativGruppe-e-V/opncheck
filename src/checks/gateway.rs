@@ -38,7 +38,7 @@ impl Gateway {
             out.local(
                 state,
                 &format!("Gateway {name}"),
-                &format!("addr={address}|rtt={delay}|rttsd={stddev}|loss={loss}"),
+                &format!("addr={address}|rtt={delay:#}|rttsd={stddev:#}|loss={loss}"),
                 &status.to_string(),
             );
         }
