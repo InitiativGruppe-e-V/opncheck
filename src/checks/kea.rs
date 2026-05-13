@@ -4,6 +4,7 @@ use std::time::Duration;
 use anyhow::anyhow;
 use serde::{Deserialize, de::IgnoredAny};
 use serde_json::json;
+use sscanf::sscanf;
 
 use super::Check;
 use crate::{
@@ -11,6 +12,7 @@ use crate::{
     exec::CommandRunner,
     opnsense::config_xml::OpnsenseConfig,
     plugin::output::{LocalSection, LocalState},
+    skip_check,
 };
 
 const KEA_URL: &str = "http://127.0.0.1:8000/";
@@ -37,7 +39,7 @@ impl Check for Kea {
 
         // Kea may be disabled; treat connection errors as a no-op check.
         let Ok(response) = client.post(KEA_URL).json(&body).send() else {
-            crate::skip_check!();
+            skip_check!();
         };
 
         let response: Vec<KeaResponseItem> = response.json()?;
@@ -112,9 +114,7 @@ struct PartialPool {
 fn collect_pools(stats: BTreeMap<String, Vec<KeaSample>>) -> anyhow::Result<Vec<PoolStats>> {
     let mut pools = BTreeMap::<(u64, u64), PartialPool>::new();
     for (name, samples) in stats {
-        let Some((subnet, pool, field)) =
-            sscanf::sscanf!(&name, "subnet[{u64}].pool[{u64}].{str}").ok()
-        else {
+        let Some((subnet, pool, field)) = sscanf!(&name, "subnet[{u64}].pool[{u64}].{str}") else {
             continue;
         };
         let entry = pools.entry((subnet, pool)).or_default();

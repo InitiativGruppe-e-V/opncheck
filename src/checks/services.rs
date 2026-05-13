@@ -6,6 +6,7 @@ use crate::{
     exec::CommandRunner,
     opnsense::config_xml::OpnsenseConfig,
     plugin::output::{LocalSection, LocalState},
+    skip_check,
 };
 
 const SERVICE_NAME: &str = "OPNsense Services";
@@ -37,7 +38,7 @@ impl Check for Services {
             .collect::<Vec<_>>();
 
         if services.is_empty() {
-            crate::skip_check!();
+            skip_check!();
         }
         write_services_result(&mut out, &services, ignored_services);
 

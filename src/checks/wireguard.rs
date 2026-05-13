@@ -4,6 +4,7 @@ use crate::{
     exec::CommandRunner,
     opnsense::config_xml::OpnsenseConfig,
     plugin::output::{LocalSection, LocalState},
+    skip_check,
 };
 
 pub struct Wireguard;
@@ -21,13 +22,13 @@ impl Check for Wireguard {
     ) -> anyhow::Result<LocalSection> {
         let mut out = LocalSection::new();
         if !opnsense_config.wireguard_enabled() {
-            crate::skip_check!();
+            skip_check!();
         }
         let data = runner
             .run("wg", ["show", "all", "dump"])
             .unwrap_or_default();
         if data.trim().is_empty() {
-            crate::skip_check!();
+            skip_check!();
         }
         let warn_secs = config.checks.wireguard.stale_warn_seconds;
         let crit_secs = config.checks.wireguard.stale_crit_seconds;

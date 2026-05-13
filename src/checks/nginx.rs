@@ -11,6 +11,7 @@ use crate::{
     exec::CommandRunner,
     opnsense::config_xml::OpnsenseConfig,
     plugin::output::{LocalSection, LocalState},
+    skip_check,
 };
 
 const STATUS_SOCKET: &str = "/var/run/nginx_status.sock";
@@ -30,7 +31,7 @@ impl Check for Nginx {
     ) -> anyhow::Result<LocalSection> {
         let mut out = LocalSection::new();
         if !opnsense_config.nginx_enabled() || !Path::new(STATUS_SOCKET).exists() {
-            crate::skip_check!();
+            skip_check!();
         }
 
         let client = reqwest::blocking::Client::builder()

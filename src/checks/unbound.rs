@@ -6,6 +6,7 @@ use crate::{
     exec::CommandRunner,
     opnsense::config_xml::OpnsenseConfig,
     plugin::output::{LocalSection, LocalState},
+    skip_check,
 };
 
 pub struct Unbound;
@@ -23,10 +24,10 @@ impl Check for Unbound {
     ) -> anyhow::Result<LocalSection> {
         let mut out = LocalSection::new();
         if !opnsense_config.unbound_enabled() {
-            crate::skip_check!();
+            skip_check!();
         }
         if !Path::new("/var/unbound/unbound.conf").exists() {
-            crate::skip_check!();
+            skip_check!();
         }
         let data = runner
             .run(
