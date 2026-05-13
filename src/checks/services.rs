@@ -20,7 +20,12 @@ impl Check for Services {
         let mut out = AgentOutput::new();
 
         let response = runner.run("configctl", ["service", "list"])?;
-        let services = serde_json::from_str::<Vec<Service>>(&response)?
+        let services = serde_json::from_str::<Vec<Service>>(&response)?;
+        let ignored_services = services
+            .iter()
+            .filter(|service| is_ignored(config, service.name.as_str()))
+            .count();
+        let services = services
             .into_iter()
             .filter(|service| !is_ignored(config, service.name.as_str()))
             .collect::<Vec<_>>();
@@ -30,13 +35,13 @@ impl Check for Services {
         }
 
         out.section("local:sep(0)");
-        write_services_result(&mut out, &services);
+        write_services_result(&mut out, &services, ignored_services);
 
         Ok(out)
     }
 }
 
-fn write_services_result(out: &mut AgentOutput, services: &[Service]) {
+fn write_services_result(out: &mut AgentOutput, services: &[Service], ignored_services: usize) {
     let stopped = services
         .iter()
         .filter(|service| !service.is_running())
@@ -47,7 +52,10 @@ fn write_services_result(out: &mut AgentOutput, services: &[Service]) {
         out.local(
             LocalState::Ok,
             SERVICE_NAME,
-            &format!("running_services={}|stopped_service=0", services.len()),
+            &format!(
+                "running_services={}|stopped_service=0|ignored_services={ignored_services}",
+                services.len()
+            ),
             "All Services running",
         );
     } else {
@@ -55,7 +63,7 @@ fn write_services_result(out: &mut AgentOutput, services: &[Service]) {
             LocalState::Crit,
             SERVICE_NAME,
             &format!(
-                "running_services={}|stopped_service={}",
+                "running_services={}|stopped_service={}|ignored_services={ignored_services}",
                 services.len() - stopped.len(),
                 stopped.len()
             ),
