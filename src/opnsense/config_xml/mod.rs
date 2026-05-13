@@ -33,7 +33,6 @@ pub struct OpnsenseConfig {
     #[serde(default)]
     pub interfaces: BTreeMap<String, Interface>,
     pub dhcpd: Option<DhcpdSection>,
-    pub gateways: Option<Gateways>,
     pub ipsec: Option<IpsecSection>,
     pub unbound: Option<UnboundSection>,
     #[serde(rename = "OPNsense")]
@@ -46,12 +45,10 @@ impl OpnsenseConfig {
     }
 
     pub fn has_gateways(&self) -> bool {
-        self.gateways.is_some()
-            || self
-                .opnsense
-                .as_ref()
-                .and_then(|opnsense| opnsense.gateways.as_ref())
-                .is_some()
+        self.opnsense
+            .as_ref()
+            .and_then(|opnsense| opnsense.gateways.as_ref())
+            .is_some_and(Gateways::has_items)
     }
 
     pub fn unbound_enabled(&self) -> bool {
