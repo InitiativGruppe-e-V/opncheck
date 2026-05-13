@@ -9,6 +9,7 @@ pub struct Config {
     pub paths: Paths,
     pub checks: Checks,
     pub security: Security,
+    pub updates: Updates,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -40,6 +41,14 @@ pub struct Security {
     pub command_timeout_seconds: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Updates {
+    pub enabled: bool,
+    pub interval_seconds: u64,
+    pub last_checked_unix: Option<u64>,
+}
+
 impl Default for Checks {
     fn default() -> Self {
         Self {
@@ -67,6 +76,16 @@ impl Default for Security {
             max_spool_file_bytes: 1024 * 1024,
             plugin_timeout_seconds: 60,
             command_timeout_seconds: 30,
+        }
+    }
+}
+
+impl Default for Updates {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            interval_seconds: 21_600,
+            last_checked_unix: None,
         }
     }
 }

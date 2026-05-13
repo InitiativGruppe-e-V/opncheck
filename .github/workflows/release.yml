@@ -17,21 +17,6 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo registry and target
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: release-freebsd
-          cache-targets: true
-          cache-on-failure: true
-
-      - name: Cache cross binary
-        id: cache-cross
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/bin/cross
-          # Bump the suffix to force a rebuild of cross against latest master.
-          key: cross-${{ runner.os }}-git-master-v1
-
       - name: Install cross
         if: steps.cache-cross.outputs.cache-hit != 'true'
         run: cargo install cross --git https://github.com/cross-rs/cross
@@ -43,13 +28,11 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p dist
-          cp target/x86_64-unknown-freebsd/release/opncheck dist/
-          cp opncheck.example.toml dist/
-          cp install.sh dist/
-          cd dist
-          tar czf "../opncheck-${VERSION}-x86_64-unknown-freebsd.tar.gz" .
+          cp target/x86_64-unknown-freebsd/release/opncheck "dist/opncheck-${VERSION}-x86_64-unknown-freebsd"
+          cp opncheck.example.toml dist/opncheck.example.toml
+          cp install.sh dist/install.sh
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          files: opncheck-*-x86_64-unknown-freebsd.tar.gz
+          files: dist/*

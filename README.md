@@ -21,25 +21,28 @@ fetch -o install.sh https://raw.githubusercontent.com/initiativgruppe-e-v/opnche
 sh install.sh
 ```
 
-The installer is intentionally small. On a first install it:
+The shell installer is intentionally small. It downloads the latest FreeBSD
+binary from GitHub and runs `opncheck setup`. On a first install, the Rust setup
+command:
 
 - checks that the host is `amd64`
 - installs the stock `check_mk_agent` package and its dependencies
 - creates `/root/.ssh/authorized_keys2` if needed
 - asks for the Checkmk site's `ssh-ed25519` public key
 - adds that key with a forced `/usr/local/bin/check_mk_agent` command
-- asks whether to enable daily `opncheck` auto-updates
+- asks whether to enable `opncheck` auto-updates during plugin runs
 
-On every run it downloads the latest release archive, installs the `opncheck`
-binary to `/usr/local/bin/opncheck`, links it into
+On every run, `opncheck setup` installs the `opncheck` binary to
+`/usr/local/bin/opncheck`, links it into
 `/usr/local/lib/check_mk_agent/plugins/opncheck`, and creates
-`/usr/local/etc/opncheck.toml` from the example configuration if it does not
-already exist.
+`/usr/local/etc/opncheck.toml` from the embedded example configuration if it
+does not already exist.
 
-If daily auto-updates are enabled during first install, the installer creates
-`/usr/local/etc/periodic/daily/810.opncheck-update`. The periodic job checks
-the latest GitHub release, compares it with `opncheck --version`, and replaces
-the binary only when a newer release exists.
+If auto-updates are enabled during first install, plugin execution checks the
+latest GitHub release at the configured interval, compares it with
+`opncheck --version`, and replaces the binary only when a newer release exists.
+The default interval is 6 hours. Update failures are reported in the
+`OPNCheck Status` local check while normal monitoring output continues.
 
 To test the plugin directly:
 
@@ -74,6 +77,10 @@ inventory_interval_seconds = 14400
 [checks.wireguard]
 stale_warn_seconds = 300
 stale_crit_seconds = 900
+
+[updates]
+enabled = false
+interval_seconds = 21600
 ```
 
 The effective configuration can be inspected with:

@@ -4,3 +4,5 @@ pub mod config;
 pub mod exec;
 pub mod opnsense;
 pub mod plugin;
+pub mod setup;
+pub mod update;

@@ -3,7 +3,7 @@ use clap::Parser;
 use opncheck::{
     cli::{Cli, Command},
     config::Config,
-    plugin,
+    plugin, setup,
 };
 
 fn main() -> Result<()> {
@@ -14,13 +14,17 @@ fn main() -> Result<()> {
         .with_writer(std::io::stderr)
         .init();
 
-    let config = Config::load(&cli.config)?;
     match cli.command.unwrap_or(Command::Plugin) {
         Command::Plugin => {
-            print!("{}", plugin::plugin_output(&config)?);
+            let mut config = Config::load(&cli.config)?;
+            print!("{}", plugin::plugin_output(&cli.config, &mut config)?);
         }
         Command::Config => {
+            let config = Config::load(&cli.config)?;
             println!("{}", toml::to_string_pretty(&config)?);
+        }
+        Command::Setup => {
+            setup::run(&cli.config)?;
         }
     }
     Ok(())
