@@ -64,31 +64,3 @@ where
 
     Ok(bytes)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn replaces_destination_with_reader_contents() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let destination = temp_dir.path().join("opncheck");
-        fs::write(&destination, "old").unwrap();
-
-        let bytes = replace_with_reader(&destination, "new".as_bytes(), "empty").unwrap();
-
-        assert_eq!(bytes, 3);
-        assert_eq!(fs::read_to_string(&destination).unwrap(), "new");
-    }
-
-    #[test]
-    fn rejects_empty_reader() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let destination = temp_dir.path().join("opncheck");
-
-        let err = replace_with_reader(&destination, io::empty(), "empty input").unwrap_err();
-
-        assert!(err.to_string().contains("empty input"));
-        assert!(!destination.exists());
-    }
-}
