@@ -24,27 +24,34 @@ impl Check for Firmware {
         let mut out = LocalSection::new();
 
         let response = runner.run("configctl", ["firmware", "product"])?;
-        let product: Product = serde_json::from_str(&response)?;
-        let version = product.product_version;
-        let updates = product.product_check.upgrade_packages.len();
 
-        let state = if updates == 0 {
-            LocalState::Ok
-        } else {
-            LocalState::Warn
-        };
-        let summary = if updates == 0 {
-            format!("Version {version}, up to date")
-        } else {
-            format!("Version {version}, {updates} update(s) available")
-        };
+        let (state, summary, metrics) =
+            if let Ok(product) = serde_json::from_str::<Product>(&response) {
+                let version = product.product_version;
+                let updates = product.product_check.upgrade_packages.len();
 
-        out.add(
-            state,
-            "OPNsense Firmware",
-            &format!("updates={updates}"),
-            &summary,
-        );
+                let state = if updates == 0 {
+                    LocalState::Ok
+                } else {
+                    LocalState::Warn
+                };
+                let summary = if updates == 0 {
+                    format!("Version {version}, up to date")
+                } else {
+                    format!("Version {version}, {updates} update(s) available")
+                };
+                (state, summary, format!("updates={updates}"))
+            } else {
+                let version_response = runner.run("opnsense-version", ["-v"])?;
+                let version = version_response.trim();
+                (
+                    LocalState::Unknown,
+                    format!("Version {version}, no update information available"),
+                    "-".to_string(),
+                )
+            };
+
+        out.add(state, "OPNsense Firmware", &metrics, &summary);
 
         Ok(out)
     }
