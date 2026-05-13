@@ -2,9 +2,10 @@ use serde::Deserialize;
 
 use super::Check;
 use crate::{
-    agent::output::{AgentOutput, LocalState},
     config::Config,
     exec::CommandRunner,
+    opnsense::config_xml::OpnsenseConfig,
+    plugin::output::{LocalSection, LocalState},
 };
 
 const SERVICE_NAME: &str = "OPNsense Services";
@@ -16,8 +17,13 @@ impl Check for Services {
         "services"
     }
 
-    fn run(&self, config: &Config, runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
-        let mut out = AgentOutput::new();
+    fn run(
+        &self,
+        config: &Config,
+        _opnsense_config: &OpnsenseConfig,
+        runner: &CommandRunner,
+    ) -> anyhow::Result<LocalSection> {
+        let mut out = LocalSection::new();
 
         let response = runner.run("configctl", ["service", "list"])?;
         let services = serde_json::from_str::<Vec<Service>>(&response)?;
@@ -31,17 +37,15 @@ impl Check for Services {
             .collect::<Vec<_>>();
 
         if services.is_empty() {
-            return Ok(out);
+            crate::skip_check!();
         }
-
-        out.section("local:sep(0)");
         write_services_result(&mut out, &services, ignored_services);
 
         Ok(out)
     }
 }
 
-fn write_services_result(out: &mut AgentOutput, services: &[Service], ignored_services: usize) {
+fn write_services_result(out: &mut LocalSection, services: &[Service], ignored_services: usize) {
     let stopped = services
         .iter()
         .filter(|service| !service.is_running())
@@ -49,7 +53,7 @@ fn write_services_result(out: &mut AgentOutput, services: &[Service], ignored_se
         .collect::<Vec<_>>();
 
     if stopped.is_empty() {
-        out.local(
+        out.add(
             LocalState::Ok,
             SERVICE_NAME,
             &format!(
@@ -59,7 +63,7 @@ fn write_services_result(out: &mut AgentOutput, services: &[Service], ignored_se
             "All Services running",
         );
     } else {
-        out.local(
+        out.add(
             LocalState::Crit,
             SERVICE_NAME,
             &format!(

@@ -5,9 +5,10 @@ use serde::Deserialize;
 
 use super::Check;
 use crate::{
-    agent::output::{AgentOutput, LocalState},
     config::Config,
     exec::CommandRunner,
+    opnsense::config_xml::OpnsenseConfig,
+    plugin::output::{LocalSection, LocalState},
 };
 
 const SERVICE_NAME: &str = "OPNsense Package Audit";
@@ -21,9 +22,13 @@ impl Check for PkgAudit {
         "pkgaudit"
     }
 
-    fn run(&self, _config: &Config, runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
-        let mut out = AgentOutput::new();
-        out.section("local:sep(0)");
+    fn run(
+        &self,
+        _config: &Config,
+        _opnsense_config: &OpnsenseConfig,
+        runner: &CommandRunner,
+    ) -> anyhow::Result<LocalSection> {
+        let mut out = LocalSection::new();
 
         let output = runner.run_output("pkg", ["audit", "-F", "--raw=json-compact", "-q"])?;
         let stdout = output.stdout().trim();
@@ -48,11 +53,11 @@ impl Check for PkgAudit {
     }
 }
 
-fn write_healthy_result(out: &mut AgentOutput) {
-    out.local(LocalState::Ok, SERVICE_NAME, "packages=0|issues=0", "OK");
+fn write_healthy_result(out: &mut LocalSection) {
+    out.add(LocalState::Ok, SERVICE_NAME, "packages=0|issues=0", "OK");
 }
 
-fn write_audit_result(out: &mut AgentOutput, audit: &PkgAuditResponse) {
+fn write_audit_result(out: &mut LocalSection, audit: &PkgAuditResponse) {
     let package_count = audit.package_count();
     let issue_count = audit.issue_count();
 
@@ -61,7 +66,7 @@ fn write_audit_result(out: &mut AgentOutput, audit: &PkgAuditResponse) {
         return;
     }
 
-    out.local(
+    out.add(
         LocalState::Warn,
         SERVICE_NAME,
         &format!("packages={package_count}|issues={issue_count}"),

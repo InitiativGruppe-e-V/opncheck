@@ -1,10 +1,11 @@
 use std::{collections::HashMap, path::Path};
 
-use super::{Check, utils};
+use super::Check;
 use crate::{
-    agent::output::{AgentOutput, LocalState},
     config::Config,
     exec::CommandRunner,
+    opnsense::config_xml::OpnsenseConfig,
+    plugin::output::{LocalSection, LocalState},
 };
 
 pub struct Unbound;
@@ -14,16 +15,18 @@ impl Check for Unbound {
         "unbound"
     }
 
-    fn run(&self, _config: &Config, runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
-        let mut out = AgentOutput::new();
-        let Some(config_xml) = utils::read_opnsense_config() else {
-            return Ok(out);
-        };
-        if !config_xml.unbound_enabled() {
-            return Ok(out);
+    fn run(
+        &self,
+        _config: &Config,
+        opnsense_config: &OpnsenseConfig,
+        runner: &CommandRunner,
+    ) -> anyhow::Result<LocalSection> {
+        let mut out = LocalSection::new();
+        if !opnsense_config.unbound_enabled() {
+            crate::skip_check!();
         }
         if !Path::new("/var/unbound/unbound.conf").exists() {
-            return Ok(out);
+            crate::skip_check!();
         }
         let data = runner
             .run(
@@ -31,9 +34,8 @@ impl Check for Unbound {
                 ["-c", "/var/unbound/unbound.conf", "stats_noreset"],
             )
             .unwrap_or_default();
-        out.section("local:sep(0)");
         if data.trim().is_empty() {
-            out.local(
+            out.add(
                 LocalState::Crit,
                 "Unbound DNS",
                 "dns_successes=0|dns_recursion=0|dns_cachehits=0|dns_cachemiss=0|avg_response_time=0",
@@ -46,7 +48,7 @@ impl Check for Unbound {
             .filter_map(|line| line.strip_prefix("total.")?.split_once('='))
             .map(|(key, value)| (key.replace('.', "_"), value.to_owned()))
             .collect::<HashMap<_, _>>();
-        out.local(
+        out.add(
             LocalState::Ok,
             "Unbound DNS",
             &format!(

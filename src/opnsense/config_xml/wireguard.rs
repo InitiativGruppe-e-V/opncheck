@@ -1,53 +1,53 @@
 use serde::Deserialize;
 
-use super::enabled::{EnabledFlag, MvcGeneral, deserialize_enabled_flag};
+use super::{MvcGeneral, enabled::deserialize_optional_bool};
 
 /// `<OPNsense><wireguard>…</wireguard></OPNsense>` per opnsense/core
 /// `src/opnsense/mvc/app/models/OPNsense/Wireguard/{General,Client}.xml`.
 #[derive(Debug, Clone, Default, Deserialize)]
-pub struct WireguardSection {
+pub(super) struct WireguardSection {
     #[serde(default)]
-    pub general: MvcGeneral,
+    general: MvcGeneral,
     #[serde(default)]
-    pub client: WireguardClientHolder,
+    client: WireguardClientHolder,
 }
 
 impl WireguardSection {
-    pub fn is_enabled_or_present(&self) -> bool {
+    pub(super) fn is_enabled_or_present(&self) -> bool {
         self.general.is_enabled_or_present()
     }
 
-    pub fn find_peer_name(&self, pubkey: &str) -> Option<&str> {
+    pub(super) fn find_peer_name(&self, pubkey: &str) -> Option<&str> {
         self.client
             .clients
             .peers
             .iter()
-            .filter(|peer| peer.enabled.is_some_and(EnabledFlag::get))
+            .filter(|peer| peer.enabled == Some(true))
             .find(|peer| peer.pubkey.as_deref() == Some(pubkey))
             .and_then(|peer| peer.name.as_deref())
     }
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
-pub struct WireguardClientHolder {
+struct WireguardClientHolder {
     #[serde(default)]
-    pub clients: WireguardPeers,
+    clients: WireguardPeers,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
-pub struct WireguardPeers {
+struct WireguardPeers {
     // The XML repeats `<client>` inside `<clients>`. The previous model named
     // this field `clients`, which silently produced an empty Vec.
     #[serde(default, rename = "client")]
-    pub peers: Vec<WireguardPeer>,
+    peers: Vec<WireguardPeer>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
-pub struct WireguardPeer {
-    #[serde(default, deserialize_with = "deserialize_enabled_flag")]
-    pub enabled: Option<EnabledFlag>,
-    pub name: Option<String>,
-    pub pubkey: Option<String>,
+struct WireguardPeer {
+    #[serde(default, deserialize_with = "deserialize_optional_bool")]
+    enabled: Option<bool>,
+    name: Option<String>,
+    pubkey: Option<String>,
 }
 
 #[cfg(test)]

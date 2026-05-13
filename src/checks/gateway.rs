@@ -5,10 +5,11 @@ use serde::Deserialize;
 use strum::Display;
 
 use crate::{
-    agent::output::{AgentOutput, LocalState},
     checks::utils::Percentage,
     config::Config,
     exec::CommandRunner,
+    opnsense::config_xml::OpnsenseConfig,
+    plugin::output::{LocalSection, LocalState},
 };
 
 use super::Check;
@@ -20,9 +21,13 @@ impl Check for Gateway {
         "gateway"
     }
 
-    fn run(&self, _config: &Config, runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
-        let mut out = AgentOutput::new();
-        out.section("local:sep(0)");
+    fn run(
+        &self,
+        _config: &Config,
+        _opnsense_config: &OpnsenseConfig,
+        runner: &CommandRunner,
+    ) -> anyhow::Result<LocalSection> {
+        let mut out = LocalSection::new();
 
         let status = runner.run("configctl", ["interface", "gateways", "status"])?;
         let response: GatewayResponse = serde_json::from_str(&status)?;
@@ -42,7 +47,7 @@ impl Check for Gateway {
 
             let state = LocalState::from(status);
 
-            out.local(
+            out.add(
                 state,
                 &format!("Gateway {name}"),
                 &format!("addr={address}|rtt={delay}ms|rttsd={stddev}ms|loss={loss}"),

@@ -1,8 +1,9 @@
-use super::{Check, utils};
+use super::Check;
 use crate::{
-    agent::output::{AgentOutput, LocalState},
     config::Config,
     exec::CommandRunner,
+    opnsense::config_xml::OpnsenseConfig,
+    plugin::output::{LocalSection, LocalState},
 };
 
 pub struct Wireguard;
@@ -12,21 +13,22 @@ impl Check for Wireguard {
         "wireguard"
     }
 
-    fn run(&self, config: &Config, runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
-        let mut out = AgentOutput::new();
-        let Some(config_xml) = utils::read_opnsense_config() else {
-            return Ok(out);
-        };
-        if !config_xml.wireguard_enabled() {
-            return Ok(out);
+    fn run(
+        &self,
+        config: &Config,
+        opnsense_config: &OpnsenseConfig,
+        runner: &CommandRunner,
+    ) -> anyhow::Result<LocalSection> {
+        let mut out = LocalSection::new();
+        if !opnsense_config.wireguard_enabled() {
+            crate::skip_check!();
         }
         let data = runner
             .run("wg", ["show", "all", "dump"])
             .unwrap_or_default();
         if data.trim().is_empty() {
-            return Ok(out);
+            crate::skip_check!();
         }
-        out.section("local:sep(0)");
         let warn_secs = config.checks.wireguard.stale_warn_seconds;
         let crit_secs = config.checks.wireguard.stale_crit_seconds;
         let now = epoch_seconds();
@@ -47,8 +49,8 @@ impl Check for Wireguard {
                 "if_in_octets={received}|if_out_octets={sent}|latest_handshake_age={age_secs}"
             );
             let summary = format!("{iface}: {endpoint}{detail}");
-            let display_name = config_xml.wireguard_peer_name(peer).unwrap_or(peer);
-            out.local(
+            let display_name = opnsense_config.wireguard_peer_name(peer).unwrap_or(peer);
+            out.add(
                 state,
                 &format!("WireGuard: {display_name}"),
                 &metrics,

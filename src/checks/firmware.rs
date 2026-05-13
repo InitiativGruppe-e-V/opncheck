@@ -2,9 +2,10 @@ use serde::Deserialize;
 
 use super::Check;
 use crate::{
-    agent::output::{AgentOutput, LocalState},
     config::Config,
     exec::CommandRunner,
+    opnsense::config_xml::OpnsenseConfig,
+    plugin::output::{LocalSection, LocalState},
 };
 
 pub struct Firmware;
@@ -14,9 +15,13 @@ impl Check for Firmware {
         "firmware"
     }
 
-    fn run(&self, _config: &Config, runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
-        let mut out = AgentOutput::new();
-        out.section("local:sep(0)");
+    fn run(
+        &self,
+        _config: &Config,
+        _opnsense_config: &OpnsenseConfig,
+        runner: &CommandRunner,
+    ) -> anyhow::Result<LocalSection> {
+        let mut out = LocalSection::new();
 
         let response = runner.run("configctl", ["firmware", "product"])?;
         let product: Product = serde_json::from_str(&response)?;
@@ -34,7 +39,7 @@ impl Check for Firmware {
             format!("Version {version}, {updates} update(s) available")
         };
 
-        out.local(
+        out.add(
             state,
             "OPNsense Firmware",
             &format!("updates={updates}"),

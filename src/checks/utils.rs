@@ -1,22 +1,6 @@
-use std::{borrow::Cow, fmt::Display, path::Path};
+use std::{borrow::Cow, fmt::Display};
 
 use serde::{Deserialize, Deserializer, de::Error};
-
-use crate::{exec::CommandRunner, opnsense as opnsense_data};
-
-pub fn read_opnsense_config() -> Option<opnsense_data::config_xml::OpnsenseConfig> {
-    opnsense_data::config_xml::read_config(Path::new("/conf/config.xml"))
-}
-
-pub fn pidof(runner: &CommandRunner, process_name: &str) -> Option<i64> {
-    let data = runner.run("ps", ["ax", "-c", "-o", "command,pid"]).ok()?;
-    data.lines().find_map(|line| {
-        let parts = line.split_whitespace().collect::<Vec<_>>();
-        (parts.len() == 2 && parts[0] == process_name)
-            .then(|| parts[1].parse::<i64>().ok())
-            .flatten()
-    })
-}
 
 pub struct Percentage(pub f64);
 

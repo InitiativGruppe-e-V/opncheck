@@ -5,11 +5,12 @@ use std::{
 
 use serde::Deserialize;
 
-use super::{Check, utils};
+use super::Check;
 use crate::{
-    agent::output::{AgentOutput, LocalState},
     config::Config,
     exec::CommandRunner,
+    opnsense::config_xml::OpnsenseConfig,
+    plugin::output::{LocalSection, LocalState},
 };
 
 const STATUS_SOCKET: &str = "/var/run/nginx_status.sock";
@@ -21,13 +22,15 @@ impl Check for Nginx {
         "nginx"
     }
 
-    fn run(&self, _config: &Config, _runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
-        let mut out = AgentOutput::new();
-        let Some(config_xml) = utils::read_opnsense_config() else {
-            return Ok(out);
-        };
-        if !config_xml.nginx_enabled() || !Path::new(STATUS_SOCKET).exists() {
-            return Ok(out);
+    fn run(
+        &self,
+        _config: &Config,
+        opnsense_config: &OpnsenseConfig,
+        _runner: &CommandRunner,
+    ) -> anyhow::Result<LocalSection> {
+        let mut out = LocalSection::new();
+        if !opnsense_config.nginx_enabled() || !Path::new(STATUS_SOCKET).exists() {
+            crate::skip_check!();
         }
 
         let client = reqwest::blocking::Client::builder()
@@ -42,9 +45,7 @@ impl Check for Nginx {
             .json::<VtsStatus>()?;
 
         let uptime = response.load_msec.map(nginx_uptime).unwrap_or(0.0);
-
-        out.section("local:sep(0)");
-        out.local(
+        out.add(
             LocalState::Ok,
             "Nginx Uptime",
             &format!("uptime={uptime:.0}"),

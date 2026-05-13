@@ -1,5 +1,3 @@
-pub mod safety;
-
 use std::{ffi::OsStr, process::Command, time::Duration};
 
 use anyhow::{Context, Result};

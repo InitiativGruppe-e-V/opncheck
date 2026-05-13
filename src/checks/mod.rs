@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
 use crate::{
-    agent::output::{AgentOutput, LocalState},
     config::Config,
     exec::CommandRunner,
+    opnsense::config_xml::OpnsenseConfig,
+    plugin::output::{LocalSection, LocalState},
 };
 
 pub mod firmware;
@@ -18,7 +19,12 @@ pub mod wireguard;
 
 pub trait Check {
     fn name(&self) -> &'static str;
-    fn run(&self, config: &Config, runner: &CommandRunner) -> anyhow::Result<AgentOutput>;
+    fn run(
+        &self,
+        config: &Config,
+        opnsense_config: &OpnsenseConfig,
+        runner: &CommandRunner,
+    ) -> anyhow::Result<LocalSection>;
 }
 
 pub fn all_checks() -> &'static [&'static dyn Check] {
@@ -34,15 +40,20 @@ pub fn all_checks() -> &'static [&'static dyn Check] {
     ]
 }
 
-pub fn collect_all(config: &Config, runner: &CommandRunner) -> AgentOutput {
+pub fn collect_all(
+    config: &Config,
+    opnsense_config: &OpnsenseConfig,
+    runner: &CommandRunner,
+) -> Vec<LocalSection> {
     let mut check_errors = HashMap::new();
-    let mut collect = AgentOutput::new();
+    let mut sections = Vec::new();
+
     for check in all_checks() {
         if config.check_enabled(check.name()) {
-            let out = check.run(config, runner);
+            let out = check.run(config, opnsense_config, runner);
             match out {
                 Ok(out) => {
-                    collect += out;
+                    sections.push(out);
                 }
                 Err(e) => {
                     check_errors.insert(check.name(), e.to_string());
@@ -51,10 +62,10 @@ pub fn collect_all(config: &Config, runner: &CommandRunner) -> AgentOutput {
         }
     }
 
-    collect.section("local:sep(0)");
+    let mut status = LocalSection::new();
 
     if check_errors.is_empty() {
-        collect.local(
+        status.add(
             LocalState::Ok,
             "OPNCheck Status",
             "status=ok",
@@ -67,12 +78,14 @@ pub fn collect_all(config: &Config, runner: &CommandRunner) -> AgentOutput {
             .collect();
         let errors = errors.join("\n");
         let err_string = format!("Errors occurred during the following checks: \n{errors}");
-        collect.local(
+        status.add(
             LocalState::Crit,
             "OPNCheck Status",
             "status=err",
             &err_string,
         );
     }
-    collect
+
+    sections.push(status);
+    sections
 }

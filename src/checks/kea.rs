@@ -7,9 +7,10 @@ use serde_json::json;
 
 use super::Check;
 use crate::{
-    agent::output::{AgentOutput, LocalState},
     config::Config,
     exec::CommandRunner,
+    opnsense::config_xml::OpnsenseConfig,
+    plugin::output::{LocalSection, LocalState},
 };
 
 const KEA_URL: &str = "http://127.0.0.1:8000/";
@@ -21,9 +22,13 @@ impl Check for Kea {
         "kea"
     }
 
-    fn run(&self, _config: &Config, _runner: &CommandRunner) -> anyhow::Result<AgentOutput> {
-        let mut out = AgentOutput::new();
-        out.section("local:sep(0)");
+    fn run(
+        &self,
+        _config: &Config,
+        _opnsense_config: &OpnsenseConfig,
+        _runner: &CommandRunner,
+    ) -> anyhow::Result<LocalSection> {
+        let mut out = LocalSection::new();
 
         let client = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(2))
@@ -32,7 +37,7 @@ impl Check for Kea {
 
         // Kea may be disabled; treat connection errors as a no-op check.
         let Ok(response) = client.post(KEA_URL).json(&body).send() else {
-            return Ok(AgentOutput::new());
+            crate::skip_check!();
         };
 
         let response: Vec<KeaResponseItem> = response.json()?;
@@ -68,7 +73,7 @@ impl Check for Kea {
                 LocalState::Ok
             };
 
-            out.local(
+            out.add(
                 state,
                 &format!("Kea DHCP Pool subnet {subnet} pool {pool}"),
                 &format!("used={assigned}|total={total}|free={free}|usage={usage:.2}%"),
