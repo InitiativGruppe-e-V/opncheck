@@ -1,4 +1,6 @@
 use super::Check;
+use sscanf::sscanf;
+
 use crate::{
     config::Config,
     exec::CommandRunner,
@@ -34,23 +36,20 @@ impl Check for Wireguard {
         let crit_secs = config.checks.wireguard.stale_crit_seconds;
         let now = epoch_seconds();
         for line in data.lines() {
-            let fields = line.split('\t').collect::<Vec<_>>();
-            if fields.len() != 9 {
+            let Some(peer) = parse_peer(line) else {
                 continue;
-            }
-            let iface = fields[0];
-            let peer = fields[1];
-            let endpoint = fields[3];
-            let latest_handshake: i64 = fields[5].parse().unwrap_or(0);
-            let received = fields[6];
-            let sent = fields[7];
+            };
+
             let (state, age_secs, detail) =
-                classify_peer(latest_handshake, now, warn_secs, crit_secs);
+                classify_peer(peer.latest_handshake, now, warn_secs, crit_secs);
             let metrics = format!(
-                "if_in_octets={received}|if_out_octets={sent}|latest_handshake_age={age_secs}"
+                "if_in_octets={}|if_out_octets={}|latest_handshake_age={age_secs}",
+                peer.received, peer.sent
             );
-            let summary = format!("{iface}: {endpoint}{detail}");
-            let display_name = opnsense_config.wireguard_peer_name(peer).unwrap_or(peer);
+            let summary = format!("{}: {}{detail}", peer.interface, peer.endpoint);
+            let display_name = opnsense_config
+                .wireguard_peer_name(peer.public_key)
+                .unwrap_or(peer.public_key);
             out.add(
                 state,
                 &format!("WireGuard: {display_name}"),
@@ -60,6 +59,33 @@ impl Check for Wireguard {
         }
         Ok(out)
     }
+}
+
+struct WireguardPeerDump<'a> {
+    interface: &'a str,
+    public_key: &'a str,
+    endpoint: &'a str,
+    latest_handshake: i64,
+    received: u64,
+    sent: u64,
+}
+
+fn parse_peer(line: &str) -> Option<WireguardPeerDump<'_>> {
+    let Some((interface, public_key, _, endpoint, _, latest_handshake, received, sent, _)) = sscanf!(
+        line,
+        "{str}\t{str}\t{str}\t{str}\t{str}\t{i64}\t{u64}\t{u64}\t{str}"
+    ) else {
+        return None;
+    };
+
+    Some(WireguardPeerDump {
+        interface,
+        public_key,
+        endpoint,
+        latest_handshake,
+        received,
+        sent,
+    })
 }
 
 fn classify_peer(

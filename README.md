@@ -9,7 +9,7 @@ checks, and spool handling. `opncheck` only emits the OPNsense checks and
 sections that Checkmk should consume in addition to the standard FreeBSD data.
 
 Current checks cover firmware information, vulnerable packages, OPNsense
-services, gateways, DHCP leases, Unbound, HAProxy, Nginx, IPsec, and
+services, gateways, DHCP leases, Unbound, Nginx, and
 WireGuard.
 
 ## Installation
