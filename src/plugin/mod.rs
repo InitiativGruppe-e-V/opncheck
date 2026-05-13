@@ -36,12 +36,20 @@ fn version_section(config: &Config, update_result: Result<UpdateOutcome>) -> Loc
                 &format!("Up to date ({version}), {}", next_check_summary(config)),
             );
         }
-        Ok(UpdateOutcome::NotDue | UpdateOutcome::UpToDate) => {
+        Ok(UpdateOutcome::NotDue | UpdateOutcome::UpToDate { .. }) => {
             section.add(
                 LocalState::Ok,
                 "OPNCheck Version",
                 "status=ok",
                 &format!("Up to date ({version}), {}", next_check_summary(config)),
+            );
+        }
+        Ok(UpdateOutcome::UpdateAvailable { current: _, latest }) => {
+            section.add(
+                LocalState::Ok,
+                "OPNCheck Version",
+                "status=update_available",
+                &format!("Update available: {latest} (current: {version})"),
             );
         }
         Ok(UpdateOutcome::Updated { from: _, to }) => {

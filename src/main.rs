@@ -25,8 +25,20 @@ fn main() -> Result<()> {
         }
         Command::Update => {
             let mut config = Config::load(&cli.config)?;
-            let outcome = update::update_now(&cli.config, &mut config)?;
+            let outcome = update::check_for_update()?;
             println!("{}", outcome.summary());
+
+            if let update::UpdateOutcome::UpdateAvailable { .. } = outcome {
+                let confirmed = dialoguer::Confirm::new()
+                    .with_prompt("Do you want to update opncheck now?")
+                    .default(true)
+                    .interact()?;
+
+                if confirmed {
+                    let outcome = update::update_now(&cli.config, &mut config)?;
+                    println!("{}", outcome.summary());
+                }
+            }
         }
         Command::Setup(options) => {
             setup::run(&cli.config, options)?;

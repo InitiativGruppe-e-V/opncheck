@@ -1,8 +1,9 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
+use console::{style, Emoji};
 use jiff::{Timestamp, tz::TimeZone};
-use self_update::{Status, backends::github::Update};
+use self_update::{Status, backends::github::Update, update::ReleaseUpdate};
 
 use crate::config::Config;
 
@@ -12,21 +13,51 @@ const BIN_NAME: &str = "opncheck";
 const INSTALL_PATH: &str = "/usr/local/bin/opncheck";
 const TARGET: &str = "x86_64-unknown-freebsd";
 
+static CHECKMARK: Emoji<'_, '_> = Emoji("✔", "OK");
+static SPARKLES: Emoji<'_, '_> = Emoji("✨", "NEW");
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum UpdateOutcome {
     Disabled,
     NotDue,
-    UpToDate,
-    Updated { from: String, to: String },
+    UpToDate {
+        version: String,
+    },
+    UpdateAvailable {
+        current: String,
+        latest: String,
+    },
+    Updated {
+        from: String,
+        to: String,
+    },
 }
 
 impl UpdateOutcome {
     pub fn summary(&self) -> String {
         match self {
-            Self::Disabled => "Auto-updates are disabled".to_owned(),
-            Self::NotDue => "Update check is not due yet".to_owned(),
-            Self::UpToDate => "opncheck is already up to date".to_owned(),
-            Self::Updated { from, to } => format!("Updated opncheck from {from} to {to}"),
+            Self::Disabled => style("Auto-updates are disabled").dim().to_string(),
+            Self::NotDue => style("Update check is not due yet").dim().to_string(),
+            Self::UpToDate { version } => format!(
+                "{} {} (current: {})",
+                CHECKMARK,
+                style("opncheck is up to date").green(),
+                style(version).dim()
+            ),
+            Self::UpdateAvailable { current, latest } => format!(
+                "{} {} ({} -> {})",
+                SPARKLES,
+                style("A new version of opncheck is available!").bold().yellow(),
+                style(current).dim(),
+                style(latest).bold().green()
+            ),
+            Self::Updated { from, to } => format!(
+                "{} {}",
+                SPARKLES,
+                style(format!("Updated opncheck from {from} to {to}"))
+                    .bold()
+                    .green()
+            ),
         }
     }
 }
@@ -41,6 +72,40 @@ pub fn check_and_update(config_path: &Path, config: &mut Config) -> Result<Updat
     }
 
     attempt_update(config_path, config)
+}
+
+fn update_builder() -> Result<Box<dyn ReleaseUpdate>> {
+    Update::configure()
+        .repo_owner(REPO_OWNER)
+        .repo_name(REPO_NAME)
+        .bin_name(BIN_NAME)
+        .bin_install_path(INSTALL_PATH)
+        .target(TARGET)
+        .identifier(BIN_NAME)
+        .show_download_progress(false)
+        .show_output(false)
+        .no_confirm(true)
+        .current_version(env!("CARGO_PKG_VERSION"))
+        .build()
+        .context("failed to configure self-update")
+}
+
+pub fn check_for_update() -> Result<UpdateOutcome> {
+    let current = env!("CARGO_PKG_VERSION");
+    let releases = update_builder()?
+        .get_latest_release()
+        .context("failed to fetch latest release from GitHub")?;
+
+    if releases.version == current {
+        Ok(UpdateOutcome::UpToDate {
+            version: current.to_owned(),
+        })
+    } else {
+        Ok(UpdateOutcome::UpdateAvailable {
+            current: current.to_owned(),
+            latest: releases.version,
+        })
+    }
 }
 
 pub fn update_now(config_path: &Path, config: &mut Config) -> Result<UpdateOutcome> {
@@ -74,24 +139,14 @@ pub fn next_check_summary(config: &Config) -> Option<String> {
 
 fn perform_update() -> Result<UpdateOutcome> {
     let current = env!("CARGO_PKG_VERSION");
-    let status = Update::configure()
-        .repo_owner(REPO_OWNER)
-        .repo_name(REPO_NAME)
-        .bin_name(BIN_NAME)
-        .bin_install_path(INSTALL_PATH)
-        .target(TARGET)
-        .identifier(BIN_NAME)
-        .show_download_progress(false)
-        .show_output(false)
-        .no_confirm(true)
-        .current_version(current)
-        .build()
-        .context("failed to configure self-update")?
+    let status = update_builder()?
         .update()
         .context("failed to update opncheck from GitHub release")?;
 
     match status {
-        Status::UpToDate(_) => Ok(UpdateOutcome::UpToDate),
+        Status::UpToDate(_) => Ok(UpdateOutcome::UpToDate {
+            version: current.to_owned(),
+        }),
         Status::Updated(version) => Ok(UpdateOutcome::Updated {
             from: current.to_owned(),
             to: version,

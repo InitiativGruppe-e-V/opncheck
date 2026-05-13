@@ -1,13 +1,14 @@
 use std::{fs, fs::OpenOptions, path::Path};
 
 use anyhow::{Context, Result, bail};
+use dialoguer::Input;
 
 use crate::{
     cli::SetupOptions,
     setup::{AUTHORIZED_KEYS, CHECKMK_AGENT, SSH_DIR},
 };
 
-use super::{SetupStep, StepStatus, can_prompt, ensure_mode, prompt_line};
+use super::{SetupStep, StepStatus, can_prompt, ensure_mode};
 use std::io::Write;
 
 pub(super) struct CheckmkKeyStep<'a> {
@@ -67,8 +68,11 @@ fn checkmk_key(options: &SetupOptions) -> Result<Option<String>> {
         return Ok(None);
     }
 
-    let key =
-        prompt_line("Paste the ssh-ed25519 public key of your Checkmk instance (empty to skip): ")?;
+    let key: String = Input::new()
+        .with_prompt("Paste the ssh-ed25519 public key of your Checkmk instance")
+        .allow_empty(true)
+        .interact()
+        .context("failed to read setup answer")?;
     validate_checkmk_key(key.trim())
 }
 

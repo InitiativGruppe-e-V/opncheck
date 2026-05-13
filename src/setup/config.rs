@@ -1,10 +1,11 @@
 use std::{fs, path::Path};
 
 use anyhow::{Context, Result};
+use dialoguer::Confirm;
 
 use crate::{cli::SetupOptions, config::Config};
 
-use super::{SetupStep, StepStatus, can_prompt, ensure_mode, prompt_line};
+use super::{SetupStep, StepStatus, can_prompt, ensure_mode};
 
 pub(super) struct ConfigStep<'a> {
     config_path: &'a Path,
@@ -78,12 +79,11 @@ fn prompted_update_preference(options: &SetupOptions) -> Result<Option<bool>> {
         return Ok(None);
     }
 
-    Ok(Some(prompt_yes_no(
-        "Enable opncheck auto-updates during plugin runs? [y/N] ",
-    )?))
-}
-
-fn prompt_yes_no(prompt: &str) -> Result<bool> {
-    let input = prompt_line(prompt)?;
-    Ok(matches!(input.trim(), "y" | "Y" | "yes" | "YES"))
+    Ok(Some(
+        Confirm::new()
+            .with_prompt("Enable opncheck auto-updates during plugin runs?")
+            .default(false)
+            .interact()
+            .context("failed to read setup answer")?,
+    ))
 }

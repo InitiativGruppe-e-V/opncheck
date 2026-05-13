@@ -6,12 +6,13 @@ mod plugin;
 
 use std::{
     fs,
-    io::{self, BufRead, IsTerminal, Write},
+    io::{self, IsTerminal},
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
 };
 
 use anyhow::{Context, Result};
+use console::{style, Emoji, Term};
 
 use crate::cli::SetupOptions;
 
@@ -21,6 +22,8 @@ const SSH_DIR: &str = "/root/.ssh";
 const AUTHORIZED_KEYS: &str = "/root/.ssh/authorized_keys2";
 const CHECKMK_AGENT: &str = "/usr/local/bin/check_mk_agent";
 
+static CHECKMARK: Emoji<'_, '_> = Emoji("✔", "OK");
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub(super) enum StepStatus {
     Changed,
@@ -29,11 +32,11 @@ pub(super) enum StepStatus {
 }
 
 impl StepStatus {
-    fn as_str(self) -> &'static str {
+    fn styled(self) -> String {
         match self {
-            Self::Changed => "changed",
-            Self::Unchanged => "unchanged",
-            Self::Skipped => "skipped",
+            Self::Changed => style("changed").green().to_string(),
+            Self::Unchanged => style("unchanged").dim().to_string(),
+            Self::Skipped => style("skipped").yellow().to_string(),
         }
     }
 }
@@ -45,7 +48,8 @@ pub(super) trait SetupStep {
 }
 
 pub fn run(config_path: &Path, options: SetupOptions) -> Result<()> {
-    println!("opncheck setup\n");
+    println!("{}", style("opncheck setup").bold().underlined());
+    println!();
 
     run_step(binary::BinaryStep)?;
     run_step(plugin::PluginStep)?;
@@ -53,7 +57,7 @@ pub fn run(config_path: &Path, options: SetupOptions) -> Result<()> {
     run_step(key::CheckmkKeyStep::new(&options))?;
     run_step(config::ConfigStep::new(config_path, &options))?;
 
-    println!("\nSetup completed.");
+    println!("\n{}", style("Setup completed.").bold().green());
     Ok(())
 }
 
@@ -61,33 +65,18 @@ fn run_step<S: SetupStep>(step: S) -> Result<()> {
     let status = step
         .run()
         .with_context(|| format!("setup step failed: {}", S::NAME))?;
-    println!("  {:<22} {}", S::NAME, status.as_str());
+
+    println!(
+        "{} {:<22} {}",
+        CHECKMARK,
+        style(S::NAME).cyan(),
+        status.styled()
+    );
     Ok(())
 }
 
-pub(super) fn prompt_line(prompt: &str) -> Result<String> {
-    print!("{prompt}");
-    io::stdout().flush().ok();
-
-    let mut input = String::new();
-    match std::fs::OpenOptions::new().read(true).open("/dev/tty") {
-        Ok(tty) => {
-            let mut tty = io::BufReader::new(tty);
-            tty.read_line(&mut input)
-                .context("failed to read setup answer from /dev/tty")?;
-        }
-        Err(_) => {
-            io::stdin()
-                .read_line(&mut input)
-                .context("failed to read setup answer")?;
-        }
-    }
-
-    Ok(input)
-}
-
 pub(super) fn can_prompt() -> bool {
-    Path::new("/dev/tty").exists() || io::stdin().is_terminal()
+    Term::stdout().is_term() && io::stdin().is_terminal()
 }
 
 pub(super) fn ensure_mode(path: &Path, mode: u32) -> Result<bool> {
