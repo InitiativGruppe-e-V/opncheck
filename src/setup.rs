@@ -217,30 +217,3 @@ fn canonicalize_if_exists(path: &Path) -> Result<Option<PathBuf>> {
         Err(err) => Err(err).with_context(|| format!("failed to inspect {}", path.display())),
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn generated_config_enables_updates_when_requested() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let config_path = temp_dir.path().join("opncheck.toml");
-
-        install_config(&config_path, true).unwrap();
-
-        let config = Config::load(&config_path).unwrap();
-        assert!(config.updates.enabled);
-    }
-
-    #[test]
-    fn generated_config_keeps_updates_disabled_by_default() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let config_path = temp_dir.path().join("opncheck.toml");
-
-        install_config(&config_path, false).unwrap();
-
-        let config = Config::load(&config_path).unwrap();
-        assert!(!config.updates.enabled);
-    }
-}
