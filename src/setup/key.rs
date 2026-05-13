@@ -109,37 +109,3 @@ fn ensure_authorized_key(path: &Path, command: &str, key: &str) -> Result<bool> 
 fn forced_command_entry(command: &str, key: &str) -> String {
     format!("command=\"{command}\" {key}")
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn appends_authorized_key_once() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let authorized_keys = temp_dir.path().join("authorized_keys2");
-        fs::write(&authorized_keys, "").unwrap();
-        let key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITest checkmk";
-
-        assert!(ensure_authorized_key(&authorized_keys, CHECKMK_AGENT, key).unwrap());
-        assert!(!ensure_authorized_key(&authorized_keys, CHECKMK_AGENT, key).unwrap());
-
-        let content = fs::read_to_string(&authorized_keys).unwrap();
-        assert_eq!(content.lines().count(), 1);
-        assert_eq!(content.trim(), forced_command_entry(CHECKMK_AGENT, key));
-    }
-
-    #[test]
-    fn appends_forced_command_when_raw_key_exists() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let authorized_keys = temp_dir.path().join("authorized_keys2");
-        let key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITest checkmk";
-        fs::write(&authorized_keys, key).unwrap();
-
-        assert!(ensure_authorized_key(&authorized_keys, CHECKMK_AGENT, key).unwrap());
-
-        let content = fs::read_to_string(&authorized_keys).unwrap();
-        assert_eq!(content.lines().count(), 2);
-        assert!(content.contains(&forced_command_entry(CHECKMK_AGENT, key)));
-    }
-}

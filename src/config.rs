@@ -1,6 +1,7 @@
-use std::{collections::BTreeSet, fs, path::PathBuf};
+use std::{collections::BTreeSet, fs, path::Path};
 
 use anyhow::{Context, Result};
+use jiff::{SignedDuration, Timestamp};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -35,8 +36,6 @@ pub struct Wireguard {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Security {
-    pub require_safe_paths: bool,
-    pub max_spool_file_bytes: u64,
     pub plugin_timeout_seconds: u64,
     pub command_timeout_seconds: u64,
 }
@@ -45,8 +44,9 @@ pub struct Security {
 #[serde(default)]
 pub struct Updates {
     pub enabled: bool,
-    pub interval_seconds: u64,
-    pub last_checked_unix: Option<u64>,
+    #[serde(serialize_with = "jiff::fmt::serde::duration::friendly::compact::required")]
+    pub interval: SignedDuration,
+    pub last_checked: Option<Timestamp>,
 }
 
 impl Default for Checks {
@@ -72,8 +72,6 @@ impl Default for Wireguard {
 impl Default for Security {
     fn default() -> Self {
         Self {
-            require_safe_paths: true,
-            max_spool_file_bytes: 1024 * 1024,
             plugin_timeout_seconds: 60,
             command_timeout_seconds: 30,
         }
@@ -84,20 +82,53 @@ impl Default for Updates {
     fn default() -> Self {
         Self {
             enabled: false,
-            interval_seconds: 21_600,
-            last_checked_unix: None,
+            interval: SignedDuration::from_hours(6),
+            last_checked: None,
         }
     }
 }
 
+impl Updates {
+    pub fn is_due(&self) -> bool {
+        self.next_check()
+            .is_some_and(|next_check| Timestamp::now() >= next_check)
+    }
+
+    pub fn next_check(&self) -> Option<Timestamp> {
+        if !self.enabled {
+            return None;
+        }
+
+        Some(
+            self.last_checked
+                .map(|last_checked| last_checked + self.interval)
+                .unwrap_or_else(Timestamp::now),
+        )
+    }
+}
+
 impl Config {
-    pub fn load(path: &PathBuf) -> Result<Self> {
+    pub fn load(path: &Path) -> Result<Self> {
         if !path.exists() {
             return Ok(Self::default());
         }
         let raw = fs::read_to_string(path)
             .with_context(|| format!("failed to read config {}", path.display()))?;
         toml::from_str(&raw).with_context(|| format!("failed to parse config {}", path.display()))
+    }
+
+    pub fn save(&self, path: &Path) -> Result<()> {
+        if let Some(parent) = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+        {
+            fs::create_dir_all(parent).with_context(|| {
+                format!("failed to create config directory {}", parent.display())
+            })?;
+        }
+
+        let raw = toml::to_string_pretty(self).context("failed to serialize config")?;
+        fs::write(path, raw).with_context(|| format!("failed to write config {}", path.display()))
     }
 
     pub fn check_enabled(&self, name: &str) -> bool {

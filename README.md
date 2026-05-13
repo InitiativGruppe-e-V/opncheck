@@ -94,7 +94,7 @@ stale_crit_seconds = 900
 
 [updates]
 enabled = false
-interval_seconds = 21600
+interval = "6h"
 ```
 
 The effective configuration can be inspected with:

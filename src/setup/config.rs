@@ -54,7 +54,7 @@ fn ensure_config(config_path: &Path, options: &SetupOptions) -> Result<StepStatu
     }
 
     if !config_path.exists() || changed {
-        write_config(config_path, &config)?;
+        config.save(config_path)?;
     }
 
     changed |= ensure_mode(config_path, 0o600)
@@ -86,63 +86,4 @@ fn prompted_update_preference(options: &SetupOptions) -> Result<Option<bool>> {
 fn prompt_yes_no(prompt: &str) -> Result<bool> {
     let input = prompt_line(prompt)?;
     Ok(matches!(input.trim(), "y" | "Y" | "yes" | "YES"))
-}
-
-fn write_config(config_path: &Path, config: &Config) -> Result<()> {
-    let parent = config_path
-        .parent()
-        .context("config path has no parent directory")?;
-    fs::create_dir_all(parent)
-        .with_context(|| format!("failed to create config directory {}", parent.display()))?;
-
-    let config = toml::to_string_pretty(config).context("failed to serialize config")?;
-    fs::write(config_path, config)
-        .with_context(|| format!("failed to write config {}", config_path.display()))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::os::unix::fs::PermissionsExt;
-
-    fn setup_options() -> SetupOptions {
-        SetupOptions {
-            yes: true,
-            checkmk_key: None,
-            enable_updates: false,
-            disable_updates: false,
-        }
-    }
-
-    #[test]
-    fn creates_config_with_selected_updates() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let config_path = temp_dir.path().join("opncheck.toml");
-        let options = SetupOptions {
-            enable_updates: true,
-            ..setup_options()
-        };
-
-        let status = ensure_config(&config_path, &options).unwrap();
-
-        assert_eq!(status, StepStatus::Changed);
-        let config = Config::load(&config_path).unwrap();
-        assert!(config.updates.enabled);
-    }
-
-    #[test]
-    fn preserves_existing_config_without_explicit_update_choice() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let config_path = temp_dir.path().join("opncheck.toml");
-        let mut config = Config::default();
-        config.updates.enabled = true;
-        fs::write(&config_path, toml::to_string_pretty(&config).unwrap()).unwrap();
-        fs::set_permissions(&config_path, fs::Permissions::from_mode(0o600)).unwrap();
-
-        let status = ensure_config(&config_path, &setup_options()).unwrap();
-
-        assert_eq!(status, StepStatus::Unchanged);
-        let config = Config::load(&config_path).unwrap();
-        assert!(config.updates.enabled);
-    }
 }

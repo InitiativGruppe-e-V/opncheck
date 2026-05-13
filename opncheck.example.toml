@@ -25,4 +25,4 @@ command_timeout_seconds = 30
 # Auto-update checks run during normal plugin execution when enabled.
 # The check is timestamp-gated so Checkmk runs do not contact GitHub every time.
 enabled = false
-interval_seconds = 21600
+interval = "6h"

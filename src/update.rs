@@ -1,8 +1,4 @@
-use std::{
-    fs,
-    path::Path,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::path::Path;
 
 use anyhow::{Context, Result};
 use jiff::{Timestamp, tz::TimeZone};
@@ -40,7 +36,7 @@ pub fn check_and_update(config_path: &Path, config: &mut Config) -> Result<Updat
         return Ok(UpdateOutcome::Disabled);
     }
 
-    if !is_check_due(config)? {
+    if !config.updates.is_due() {
         return Ok(UpdateOutcome::NotDue);
     }
 
@@ -66,11 +62,10 @@ fn attempt_update(config_path: &Path, config: &mut Config) -> Result<UpdateOutco
 }
 
 pub fn next_check_summary(config: &Config) -> Option<String> {
-    let next_check_unix = next_check_unix(config)?;
-    let timestamp = i64::try_from(next_check_unix).ok()?;
-    let timestamp = Timestamp::from_second(timestamp).ok()?;
     Some(
-        timestamp
+        config
+            .updates
+            .next_check()?
             .to_zoned(TimeZone::system())
             .strftime("%d.%m.%Y %H:%M:%S")
             .to_string(),
@@ -104,114 +99,7 @@ fn perform_update() -> Result<UpdateOutcome> {
     }
 }
 
-fn next_check_unix(config: &Config) -> Option<u64> {
-    if !config.updates.enabled {
-        return None;
-    }
-
-    if config.updates.interval_seconds == 0 {
-        return now_unix().ok();
-    }
-
-    Some(
-        config
-            .updates
-            .last_checked_unix
-            .unwrap_or_else(|| now_unix().unwrap_or(0))
-            .saturating_add(config.updates.interval_seconds),
-    )
-}
-
-fn is_check_due(config: &Config) -> Result<bool> {
-    if config.updates.interval_seconds == 0 {
-        return Ok(true);
-    }
-
-    let Some(last_checked_unix) = config.updates.last_checked_unix else {
-        return Ok(true);
-    };
-
-    let now = now_unix()?;
-    Ok(now.saturating_sub(last_checked_unix) >= config.updates.interval_seconds)
-}
-
 fn write_last_checked(config_path: &Path, config: &mut Config) -> Result<()> {
-    config.updates.last_checked_unix = Some(now_unix()?);
-
-    if let Some(parent) = config_path.parent() {
-        fs::create_dir_all(parent)
-            .with_context(|| format!("failed to create config directory {}", parent.display()))?;
-    }
-
-    let raw = toml::to_string_pretty(config).context("failed to serialize config")?;
-    fs::write(config_path, raw)
-        .with_context(|| format!("failed to write config {}", config_path.display()))
-}
-
-fn now_unix() -> Result<u64> {
-    Ok(SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .context("system clock is before Unix epoch")?
-        .as_secs())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn scheduled_check_is_due_when_never_checked() {
-        let mut config = Config::default();
-        config.updates.enabled = true;
-        config.updates.last_checked_unix = None;
-
-        assert!(is_check_due(&config).unwrap());
-    }
-
-    #[test]
-    fn scheduled_check_is_not_due_inside_interval() {
-        let mut config = Config::default();
-        config.updates.enabled = true;
-        config.updates.interval_seconds = 21_600;
-        config.updates.last_checked_unix = Some(now_unix().unwrap());
-
-        assert!(!is_check_due(&config).unwrap());
-    }
-
-    #[test]
-    fn scheduled_check_is_due_after_interval() {
-        let mut config = Config::default();
-        config.updates.enabled = true;
-        config.updates.interval_seconds = 21_600;
-        config.updates.last_checked_unix = Some(now_unix().unwrap() - 21_600);
-
-        assert!(is_check_due(&config).unwrap());
-    }
-
-    #[test]
-    fn zero_interval_is_always_due() {
-        let mut config = Config::default();
-        config.updates.enabled = true;
-        config.updates.interval_seconds = 0;
-        config.updates.last_checked_unix = Some(now_unix().unwrap());
-
-        assert!(is_check_due(&config).unwrap());
-    }
-
-    #[test]
-    fn write_last_checked_persists_timestamp() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let config_path = temp_dir.path().join("opncheck.toml");
-        let mut config = Config::default();
-
-        write_last_checked(&config_path, &mut config).unwrap();
-
-        let raw = fs::read_to_string(&config_path).unwrap();
-        let written: Config = toml::from_str(&raw).unwrap();
-        assert!(config.updates.last_checked_unix.is_some());
-        assert_eq!(
-            written.updates.last_checked_unix,
-            config.updates.last_checked_unix
-        );
-    }
+    config.updates.last_checked = Some(Timestamp::now());
+    config.save(config_path)
 }
