@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use serde::Deserialize;
 
 use super::Check;
 use crate::{
@@ -18,23 +18,10 @@ impl Check for Firmware {
         let mut out = AgentOutput::new();
         out.section("local:sep(0)");
 
-        let response = runner.run("configctl", ["firmware", "status"])?;
-
-        let mut version: Option<&str> = None;
-        let mut updates: Option<u64> = None;
-        for line in response.lines() {
-            if let Some(rest) = line.strip_prefix("Currently running OPNsense ") {
-                version = rest.split_whitespace().next();
-            }
-            if let Ok((n, _)) =
-                sscanf::sscanf!(line, "Checking for upgrades ({u64} candidates): {str}")
-            {
-                updates = Some(n);
-            }
-        }
-
-        let version = version.ok_or_else(|| anyhow!("could not parse current OPNsense version"))?;
-        let updates = updates.ok_or_else(|| anyhow!("could not parse upgrade candidate count"))?;
+        let response = runner.run("configctl", ["firmware", "product"])?;
+        let product: Product = serde_json::from_str(&response)?;
+        let version = product.product_version;
+        let updates = product.product_check.upgrade_packages.len();
 
         let state = if updates == 0 {
             LocalState::Ok
@@ -56,4 +43,15 @@ impl Check for Firmware {
 
         Ok(out)
     }
+}
+
+#[derive(Deserialize)]
+struct Product {
+    product_version: String,
+    product_check: ProductCheck,
+}
+
+#[derive(Deserialize)]
+struct ProductCheck {
+    upgrade_packages: Vec<serde::de::IgnoredAny>,
 }
