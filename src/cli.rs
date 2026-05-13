@@ -21,6 +21,8 @@ pub enum Command {
     Plugin,
     /// Print a redacted view of the effective configuration.
     Config,
+    /// Check GitHub for an opncheck update immediately.
+    Update,
     /// Install opncheck as a Checkmk agent plugin on this host.
     Setup(SetupOptions),
 }

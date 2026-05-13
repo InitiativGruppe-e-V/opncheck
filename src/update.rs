@@ -24,6 +24,17 @@ pub enum UpdateOutcome {
     Updated { from: String, to: String },
 }
 
+impl UpdateOutcome {
+    pub fn summary(&self) -> String {
+        match self {
+            Self::Disabled => "Auto-updates are disabled".to_owned(),
+            Self::NotDue => "Update check is not due yet".to_owned(),
+            Self::UpToDate => "opncheck is already up to date".to_owned(),
+            Self::Updated { from, to } => format!("Updated opncheck from {from} to {to}"),
+        }
+    }
+}
+
 pub fn check_and_update(config_path: &Path, config: &mut Config) -> Result<UpdateOutcome> {
     if !config.updates.enabled {
         return Ok(UpdateOutcome::Disabled);
@@ -33,6 +44,14 @@ pub fn check_and_update(config_path: &Path, config: &mut Config) -> Result<Updat
         return Ok(UpdateOutcome::NotDue);
     }
 
+    attempt_update(config_path, config)
+}
+
+pub fn update_now(config_path: &Path, config: &mut Config) -> Result<UpdateOutcome> {
+    attempt_update(config_path, config)
+}
+
+fn attempt_update(config_path: &Path, config: &mut Config) -> Result<UpdateOutcome> {
     let update_result = perform_update();
     let state_result = write_last_checked(config_path, config);
 
@@ -52,8 +71,8 @@ pub fn next_check_summary(config: &Config) -> Option<String> {
     let timestamp = Timestamp::from_second(timestamp).ok()?;
     Some(
         timestamp
-            .to_zoned(TimeZone::UTC)
-            .strftime("%Y-%m-%d %H:%M:%S UTC")
+            .to_zoned(TimeZone::system())
+            .strftime("%d.%m.%Y %H:%M:%S")
             .to_string(),
     )
 }
@@ -134,4 +153,65 @@ fn now_unix() -> Result<u64> {
         .duration_since(UNIX_EPOCH)
         .context("system clock is before Unix epoch")?
         .as_secs())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scheduled_check_is_due_when_never_checked() {
+        let mut config = Config::default();
+        config.updates.enabled = true;
+        config.updates.last_checked_unix = None;
+
+        assert!(is_check_due(&config).unwrap());
+    }
+
+    #[test]
+    fn scheduled_check_is_not_due_inside_interval() {
+        let mut config = Config::default();
+        config.updates.enabled = true;
+        config.updates.interval_seconds = 21_600;
+        config.updates.last_checked_unix = Some(now_unix().unwrap());
+
+        assert!(!is_check_due(&config).unwrap());
+    }
+
+    #[test]
+    fn scheduled_check_is_due_after_interval() {
+        let mut config = Config::default();
+        config.updates.enabled = true;
+        config.updates.interval_seconds = 21_600;
+        config.updates.last_checked_unix = Some(now_unix().unwrap() - 21_600);
+
+        assert!(is_check_due(&config).unwrap());
+    }
+
+    #[test]
+    fn zero_interval_is_always_due() {
+        let mut config = Config::default();
+        config.updates.enabled = true;
+        config.updates.interval_seconds = 0;
+        config.updates.last_checked_unix = Some(now_unix().unwrap());
+
+        assert!(is_check_due(&config).unwrap());
+    }
+
+    #[test]
+    fn write_last_checked_persists_timestamp() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config_path = temp_dir.path().join("opncheck.toml");
+        let mut config = Config::default();
+
+        write_last_checked(&config_path, &mut config).unwrap();
+
+        let raw = fs::read_to_string(&config_path).unwrap();
+        let written: Config = toml::from_str(&raw).unwrap();
+        assert!(config.updates.last_checked_unix.is_some());
+        assert_eq!(
+            written.updates.last_checked_unix,
+            config.updates.last_checked_unix
+        );
+    }
 }

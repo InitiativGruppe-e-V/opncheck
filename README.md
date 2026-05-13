@@ -49,6 +49,15 @@ latest GitHub release at the configured interval, compares it with
 The default interval is 6 hours. Update state and failures are reported in the
 `OPNCheck Version` local check while normal monitoring output continues.
 
+To check for an update immediately, bypassing the configured interval:
+
+```sh
+opncheck update
+```
+
+This records the update check timestamp immediately after the attempt, even if
+the update fails.
+
 To test the plugin directly:
 
 ```sh

@@ -3,7 +3,7 @@ use clap::Parser;
 use opncheck::{
     cli::{Cli, Command},
     config::Config,
-    plugin, setup,
+    plugin, setup, update,
 };
 
 fn main() -> Result<()> {
@@ -22,6 +22,11 @@ fn main() -> Result<()> {
         Command::Config => {
             let config = Config::load(&cli.config)?;
             println!("{}", toml::to_string_pretty(&config)?);
+        }
+        Command::Update => {
+            let mut config = Config::load(&cli.config)?;
+            let outcome = update::update_now(&cli.config, &mut config)?;
+            println!("{}", outcome.summary());
         }
         Command::Setup(options) => {
             setup::run(&cli.config, options)?;
