@@ -22,5 +22,24 @@ pub enum Command {
     /// Print a redacted view of the effective configuration.
     Config,
     /// Install opncheck as a Checkmk agent plugin on this host.
-    Setup,
+    Setup(SetupOptions),
+}
+
+#[derive(Debug, Clone, Parser)]
+pub struct SetupOptions {
+    /// Do not prompt for optional setup choices.
+    #[arg(long)]
+    pub yes: bool,
+
+    /// Checkmk site's ssh-ed25519 public key to install for agent access.
+    #[arg(long)]
+    pub checkmk_key: Option<String>,
+
+    /// Enable opncheck auto-updates in the configuration.
+    #[arg(long, conflicts_with = "disable_updates")]
+    pub enable_updates: bool,
+
+    /// Disable opncheck auto-updates in the configuration.
+    #[arg(long, conflicts_with = "enable_updates")]
+    pub disable_updates: bool,
 }

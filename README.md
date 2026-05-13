@@ -22,20 +22,26 @@ sh install.sh
 ```
 
 The shell installer is intentionally small. It downloads the latest FreeBSD
-binary from GitHub and runs `opncheck setup`. On a first install, the Rust setup
-command:
+binary from GitHub and runs `opncheck setup`. The setup command is safe to rerun.
+It:
 
-- checks that the host is `amd64`
 - installs the stock `check_mk_agent` package and its dependencies
-- creates `/root/.ssh/authorized_keys2` if needed
+- installs or repairs `/usr/local/bin/opncheck`
+- installs or repairs the Checkmk plugin symlink
+- creates `/root/.ssh/authorized_keys2` if needed and fixes its permissions
 - asks for the Checkmk site's `ssh-ed25519` public key
-- adds that key with a forced `/usr/local/bin/check_mk_agent` command
-- asks whether to enable `opncheck` auto-updates during plugin runs
+- adds that key with a forced `/usr/local/bin/check_mk_agent` command if missing
+- creates a default `/usr/local/etc/opncheck.toml` if needed
+- asks whether to enable `opncheck` auto-updates when creating the config
 
-On every run, `opncheck setup` installs the `opncheck` binary to
-`/usr/local/bin/opncheck`, links it into
-`/usr/local/lib/check_mk_agent/plugins/opncheck`, and creates a default
-`/usr/local/etc/opncheck.toml` if it does not already exist.
+Existing config values are preserved unless an explicit setup flag changes them.
+For unattended setup, pass the key and update choice directly:
+
+```sh
+opncheck setup --yes --enable-updates --checkmk-key 'ssh-ed25519 AAAA... checkmk-site'
+```
+
+Use `--disable-updates` instead of `--enable-updates` to force updates off.
 
 If auto-updates are enabled during first install, plugin execution checks the
 latest GitHub release at the configured interval, compares it with

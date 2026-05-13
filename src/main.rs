@@ -23,8 +23,8 @@ fn main() -> Result<()> {
             let config = Config::load(&cli.config)?;
             println!("{}", toml::to_string_pretty(&config)?);
         }
-        Command::Setup => {
-            setup::run(&cli.config)?;
+        Command::Setup(options) => {
+            setup::run(&cli.config, options)?;
         }
     }
     Ok(())

@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, de::IgnoredAny};
 
 use super::Check;
 use crate::{
@@ -58,5 +58,5 @@ struct Product {
 
 #[derive(Deserialize)]
 struct ProductCheck {
-    upgrade_packages: Vec<serde::de::IgnoredAny>,
+    upgrade_packages: Vec<IgnoredAny>,
 }

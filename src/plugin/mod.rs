@@ -1,7 +1,7 @@
 pub mod output;
 
 use anyhow::Result;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::{
     checks,
@@ -12,7 +12,7 @@ use crate::{
     update::{self, UpdateOutcome},
 };
 
-pub fn plugin_output(config_path: &PathBuf, config: &mut Config) -> Result<String> {
+pub fn plugin_output(config_path: &Path, config: &mut Config) -> Result<String> {
     let runner = CommandRunner::new(config.security.command_timeout_seconds);
     let update_result = update::check_and_update(config_path, config);
     let opnsense_config = config_xml::read_config(Path::new("/conf/config.xml"))?;

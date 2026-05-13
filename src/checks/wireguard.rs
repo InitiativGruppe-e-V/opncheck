@@ -71,12 +71,10 @@ struct WireguardPeerDump<'a> {
 }
 
 fn parse_peer(line: &str) -> Option<WireguardPeerDump<'_>> {
-    let Some((interface, public_key, _, endpoint, _, latest_handshake, received, sent, _)) = sscanf!(
+    let (interface, public_key, _, endpoint, _, latest_handshake, received, sent, _) = sscanf!(
         line,
         "{str}\t{str}\t{str}\t{str}\t{str}\t{i64}\t{u64}\t{u64}\t{str}"
-    ) else {
-        return None;
-    };
+    )?;
 
     Some(WireguardPeerDump {
         interface,
