@@ -3,6 +3,8 @@ use std::{fs, path::Path};
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
+use crate::opnsense::config_xml::wireguard::WireguardSection;
+
 use self::enabled::EnabledFlag;
 
 mod enabled;
@@ -39,7 +41,7 @@ impl OpnsenseConfig {
         self.opnsense
             .as_ref()
             .and_then(|opnsense| opnsense.wireguard.as_ref())
-            .is_some_and(wireguard::WireguardSection::is_enabled_or_present)
+            .is_some_and(WireguardSection::is_enabled_or_present)
     }
 
     pub fn wireguard_peer_name(&self, pubkey: &str) -> Option<&str> {
@@ -54,7 +56,7 @@ impl OpnsenseConfig {
 struct OPNsenseSection {
     #[serde(rename = "Nginx")]
     nginx: Option<MvcServiceSection>,
-    wireguard: Option<wireguard::WireguardSection>,
+    wireguard: Option<WireguardSection>,
     unboundplus: Option<MvcServiceSection>,
 }
 

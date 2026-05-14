@@ -35,8 +35,13 @@ impl SetupStep for PackagesStep {
         let stdout_reader = BufReader::new(stdout);
         let stderr_reader = BufReader::new(stderr);
 
+        let mut nothing_to_do = false;
+
         // Print stdout lines indented and gray
         for line in stdout_reader.lines().map_while(Result::ok) {
+            if line.contains("The most recent versions of packages are already installed") {
+                nothing_to_do = true;
+            }
             println!("    {}", style(line).dim());
         }
 
@@ -51,6 +56,12 @@ impl SetupStep for PackagesStep {
             bail!("pkg install failed with status {status}");
         }
 
-        Ok(StepStatus::Changed)
+        let status = if nothing_to_do {
+            StepStatus::Unchanged
+        } else {
+            StepStatus::Changed
+        };
+
+        Ok(status)
     }
 }
