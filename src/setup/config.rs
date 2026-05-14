@@ -81,7 +81,7 @@ fn prompted_update_preference(options: &SetupOptions) -> Result<Option<bool>> {
 
     Ok(Some(
         Confirm::new()
-            .with_prompt("Enable opncheck auto-updates during plugin runs?")
+            .with_prompt("Enable OPNCheck Auto-Updates?")
             .default(false)
             .interact()
             .context("failed to read setup answer")?,
