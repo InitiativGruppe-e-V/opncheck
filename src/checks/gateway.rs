@@ -5,11 +5,11 @@ use serde::Deserialize;
 use strum::Display;
 
 use crate::{
-    checks::utils::Percentage,
     config::Config,
     exec::CommandRunner,
     opnsense::config_xml::OpnsenseConfig,
     plugin::output::{LocalSection, LocalState},
+    utils::{catch_missing::CatchMissing, percentage::Percentage},
 };
 
 use super::Check;
@@ -42,8 +42,9 @@ impl Check for Gateway {
                 stddev,
             } = gateway;
 
-            let delay = delay.as_millis_f64();
-            let stddev = stddev.as_millis_f64();
+            let delay = delay.unwrap_or_default().as_millis_f64();
+            let stddev = stddev.unwrap_or_default().as_millis_f64();
+            let loss = loss.as_ref().unwrap_or(&Percentage::HUNDRED);
 
             let state = LocalState::from(status);
 
@@ -67,9 +68,9 @@ pub struct GatewayInfo {
     name: String,
     address: IpAddr,
     status: GatewayStatus,
-    loss: Percentage,
-    delay: SignedDuration,
-    stddev: SignedDuration,
+    loss: CatchMissing<Percentage>,
+    delay: CatchMissing<SignedDuration>,
+    stddev: CatchMissing<SignedDuration>,
 }
 
 #[derive(Deserialize, Display, Clone, Copy)]

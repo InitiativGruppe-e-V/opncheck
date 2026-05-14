@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use console::{style, Emoji};
+use console::{Emoji, style};
 use jiff::{Timestamp, tz::TimeZone};
 use self_update::{Status, backends::github::Update, update::ReleaseUpdate};
 
@@ -20,17 +20,9 @@ static SPARKLES: Emoji<'_, '_> = Emoji("✨", "NEW");
 pub enum UpdateOutcome {
     Disabled,
     NotDue,
-    UpToDate {
-        version: String,
-    },
-    UpdateAvailable {
-        current: String,
-        latest: String,
-    },
-    Updated {
-        from: String,
-        to: String,
-    },
+    UpToDate { version: String },
+    UpdateAvailable { current: String, latest: String },
+    Updated { from: String, to: String },
 }
 
 impl UpdateOutcome {
@@ -47,7 +39,9 @@ impl UpdateOutcome {
             Self::UpdateAvailable { current, latest } => format!(
                 "{} {} ({} -> {})",
                 SPARKLES,
-                style("A new version of opncheck is available!").bold().yellow(),
+                style("A new version of opncheck is available!")
+                    .bold()
+                    .yellow(),
                 style(current).dim(),
                 style(latest).bold().green()
             ),

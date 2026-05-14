@@ -12,7 +12,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use console::{style, Emoji, Term};
+use console::{Emoji, Term, style};
 
 use crate::cli::SetupOptions;
 
