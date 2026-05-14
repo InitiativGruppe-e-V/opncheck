@@ -55,7 +55,7 @@ pub fn collect_all(
             let elapsed = started.elapsed();
             match out {
                 Ok(mut out) => {
-                    out.inject("took", format_took(elapsed));
+                    out.inject("server_latency", format_latency(elapsed));
                     sections.push(out);
                 }
                 Err(e) => {
@@ -87,7 +87,7 @@ pub fn collect_all(
                     "{}: {} (took {})",
                     error.section,
                     error.error,
-                    format_took(error.elapsed)
+                    format_latency(error.elapsed)
                 )
             })
             .collect();
@@ -102,7 +102,7 @@ pub fn collect_all(
         for error in &check_errors {
             row.with_metric(
                 format!("{}_took", metric_key_suffix(error.section)),
-                format_took(error.elapsed),
+                format_latency(error.elapsed),
             );
         }
     }
@@ -117,7 +117,7 @@ struct CheckError {
     elapsed: Duration,
 }
 
-fn format_took(elapsed: Duration) -> String {
+fn format_latency(elapsed: Duration) -> String {
     format!("{:.3}ms", elapsed.as_secs_f64() * 1000.0)
 }
 
