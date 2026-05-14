@@ -75,12 +75,15 @@ impl Check for Kea {
                 LocalState::Ok
             };
 
-            out.add(
+            out.row(
                 state,
                 &format!("Kea DHCP Pool subnet {subnet} pool {pool}"),
-                &format!("used={assigned}|total={total}|free={free}|usage={usage:.2}%"),
                 &format!("{assigned}/{total} addresses used ({usage:.2}%)"),
-            );
+            )
+            .with_metric("used", assigned.to_string())
+            .with_metric("total", total.to_string())
+            .with_metric("free", free.to_string())
+            .with_metric("usage", format!("{usage:.2}%"));
         }
 
         Ok(out)

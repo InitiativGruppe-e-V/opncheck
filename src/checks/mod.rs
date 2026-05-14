@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 use crate::{
     config::Config,
@@ -45,18 +45,25 @@ pub fn collect_all(
     opnsense_config: &OpnsenseConfig,
     runner: &CommandRunner,
 ) -> Vec<LocalSection> {
-    let mut check_errors = HashMap::new();
+    let mut check_errors = Vec::new();
     let mut sections = Vec::new();
 
     for check in all_checks() {
         if config.check_enabled(check.name()) {
+            let started = Instant::now();
             let out = check.run(config, opnsense_config, runner);
+            let elapsed = started.elapsed();
             match out {
-                Ok(out) => {
+                Ok(mut out) => {
+                    out.inject("took", format_took(elapsed));
                     sections.push(out);
                 }
                 Err(e) => {
-                    check_errors.insert(check.name(), e.to_string());
+                    check_errors.push(CheckError {
+                        section: check.name(),
+                        error: e.to_string(),
+                        elapsed,
+                    });
                 }
             }
         }
@@ -65,27 +72,64 @@ pub fn collect_all(
     let mut status = LocalSection::new();
 
     if check_errors.is_empty() {
-        status.add(
-            LocalState::Ok,
-            "OPNCheck Status",
-            "status=ok",
-            "All checks completed successfully",
-        );
+        status
+            .row(
+                LocalState::Ok,
+                "OPNCheck Status",
+                "All checks completed successfully",
+            )
+            .with_metric("status", "ok");
     } else {
         let errors: Vec<String> = check_errors
             .iter()
-            .map(|(k, v)| format!("{k}: {v}"))
+            .map(|error| {
+                format!(
+                    "{}: {} (took {})",
+                    error.section,
+                    error.error,
+                    format_took(error.elapsed)
+                )
+            })
             .collect();
+
         let errors = errors.join("\n");
-        let err_string = format!("Errors occurred during some checks: \n{errors}");
-        status.add(
-            LocalState::Crit,
-            "OPNCheck Status",
-            "status=err",
-            &err_string,
-        );
+        let errors = format!("Errors occurred during some checks: \n{errors}");
+
+        let row = status
+            .row(LocalState::Crit, "OPNCheck Status", &errors)
+            .with_metric("status", "err");
+
+        for error in &check_errors {
+            row.with_metric(
+                format!("{}_took", metric_key_suffix(error.section)),
+                format_took(error.elapsed),
+            );
+        }
     }
 
     sections.push(status);
     sections
+}
+
+struct CheckError {
+    section: &'static str,
+    error: String,
+    elapsed: Duration,
+}
+
+fn format_took(elapsed: Duration) -> String {
+    format!("{:.3}ms", elapsed.as_secs_f64() * 1000.0)
+}
+
+fn metric_key_suffix(input: &str) -> String {
+    input
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch == '_' {
+                ch
+            } else {
+                '_'
+            }
+        })
+        .collect()
 }

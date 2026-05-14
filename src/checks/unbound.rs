@@ -36,12 +36,12 @@ impl Check for Unbound {
             )
             .unwrap_or_default();
         if data.trim().is_empty() {
-            out.add(
-                LocalState::Crit,
-                "Unbound DNS",
-                "dns_successes=0|dns_recursion=0|dns_cachehits=0|dns_cachemiss=0|avg_response_time=0",
-                "Unbound not running",
-            );
+            out.row(LocalState::Crit, "Unbound DNS", "Unbound not running")
+                .with_metric("dns_successes", "0")
+                .with_metric("dns_recursion", "0")
+                .with_metric("dns_cachehits", "0")
+                .with_metric("dns_cachemiss", "0")
+                .with_metric("avg_response_time", "0");
             return Ok(out);
         }
         let stats = data
@@ -49,19 +49,39 @@ impl Check for Unbound {
             .filter_map(|line| line.strip_prefix("total.")?.split_once('='))
             .map(|(key, value)| (key.replace('.', "_"), value.to_owned()))
             .collect::<HashMap<_, _>>();
-        out.add(
-            LocalState::Ok,
-            "Unbound DNS",
-            &format!(
-                "dns_successes={}|dns_recursion={}|dns_cachehits={}|dns_cachemiss={}|avg_response_time={}",
+        out.row(LocalState::Ok, "Unbound DNS", "Unbound running")
+            .with_metric(
+                "dns_successes",
                 stats.get("num_queries").map(String::as_str).unwrap_or("0"),
-                stats.get("num_recursivereplies").map(String::as_str).unwrap_or("0"),
-                stats.get("num_cachehits").map(String::as_str).unwrap_or("0"),
-                stats.get("num_cachemiss").map(String::as_str).unwrap_or("0"),
-                stats.get("recursion_time_avg").map(String::as_str).unwrap_or("0"),
-            ),
-            "Unbound running",
-        );
+            )
+            .with_metric(
+                "dns_recursion",
+                stats
+                    .get("num_recursivereplies")
+                    .map(String::as_str)
+                    .unwrap_or("0"),
+            )
+            .with_metric(
+                "dns_cachehits",
+                stats
+                    .get("num_cachehits")
+                    .map(String::as_str)
+                    .unwrap_or("0"),
+            )
+            .with_metric(
+                "dns_cachemiss",
+                stats
+                    .get("num_cachemiss")
+                    .map(String::as_str)
+                    .unwrap_or("0"),
+            )
+            .with_metric(
+                "avg_response_time",
+                stats
+                    .get("recursion_time_avg")
+                    .map(String::as_str)
+                    .unwrap_or("0"),
+            );
         Ok(out)
     }
 }

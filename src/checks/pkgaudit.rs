@@ -54,7 +54,9 @@ impl Check for PkgAudit {
 }
 
 fn write_healthy_result(out: &mut LocalSection) {
-    out.add(LocalState::Ok, SERVICE_NAME, "packages=0|issues=0", "OK");
+    out.row(LocalState::Ok, SERVICE_NAME, "OK")
+        .with_metric("packages", "0")
+        .with_metric("issues", "0");
 }
 
 fn write_audit_result(out: &mut LocalSection, audit: &PkgAuditResponse) {
@@ -66,12 +68,13 @@ fn write_audit_result(out: &mut LocalSection, audit: &PkgAuditResponse) {
         return;
     }
 
-    out.add(
+    out.row(
         LocalState::Warn,
         SERVICE_NAME,
-        &format!("packages={package_count}|issues={issue_count}"),
         &format!("Vulnerable packages: {}", audit.summary()),
-    );
+    )
+    .with_metric("packages", package_count.to_string())
+    .with_metric("issues", issue_count.to_string());
 }
 
 #[derive(Deserialize)]

@@ -48,12 +48,14 @@ impl Check for Gateway {
 
             let state = LocalState::from(status);
 
-            out.add(
+            out.row(
                 state,
                 &format!("Gateway {name}"),
-                &format!("rtt={delay}ms|rttsd={stddev}ms|loss={loss}"),
                 &format!("{status} -> {address}, RTT {delay}ms"),
-            );
+            )
+            .with_metric("rtt", format!("{delay}ms"))
+            .with_metric("rttsd", format!("{stddev}ms"))
+            .with_metric("loss", loss.to_string());
         }
 
         Ok(out)

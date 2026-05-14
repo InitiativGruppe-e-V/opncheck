@@ -25,7 +25,7 @@ impl Check for Firmware {
 
         let response = runner.run("configctl", ["firmware", "product"])?;
 
-        let (state, summary, metrics) =
+        let (state, summary, updates_metric) =
             if let Ok(product) = serde_json::from_str::<Product>(&response) {
                 let version = product.product_version;
                 let updates = product.product_check.upgrade_packages.len();
@@ -40,18 +40,21 @@ impl Check for Firmware {
                 } else {
                     format!("Version {version}, {updates} update(s) available")
                 };
-                (state, summary, format!("updates={updates}"))
+                (state, summary, Some(updates.to_string()))
             } else {
                 let version_response = runner.run("opnsense-version", ["-v"])?;
                 let version = version_response.trim();
                 (
                     LocalState::Unknown,
                     format!("Version {version}, no update information available"),
-                    "-".to_string(),
+                    None,
                 )
             };
 
-        out.add(state, "OPNsense Firmware", &metrics, &summary);
+        let row = out.row(state, "OPNsense Firmware", &summary);
+        if let Some(updates) = updates_metric {
+            row.with_metric("updates", updates);
+        }
 
         Ok(out)
     }

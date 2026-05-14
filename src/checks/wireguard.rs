@@ -42,20 +42,14 @@ impl Check for Wireguard {
 
             let (state, age_secs, detail) =
                 classify_peer(peer.latest_handshake, now, warn_secs, crit_secs);
-            let metrics = format!(
-                "if_in_octets={}|if_out_octets={}|latest_handshake_age={age_secs}",
-                peer.received, peer.sent
-            );
             let summary = format!("{}: {}{detail}", peer.interface, peer.endpoint);
             let display_name = opnsense_config
                 .wireguard_peer_name(peer.public_key)
                 .unwrap_or(peer.public_key);
-            out.add(
-                state,
-                &format!("WireGuard: {display_name}"),
-                &metrics,
-                &summary,
-            );
+            out.row(state, &format!("WireGuard: {display_name}"), &summary)
+                .with_metric("if_in_octets", peer.received.to_string())
+                .with_metric("if_out_octets", peer.sent.to_string())
+                .with_metric("latest_handshake_age", age_secs.to_string());
         }
         Ok(out)
     }

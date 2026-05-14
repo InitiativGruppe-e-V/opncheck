@@ -54,26 +54,22 @@ fn write_services_result(out: &mut LocalSection, services: &[Service], ignored_s
         .collect::<Vec<_>>();
 
     if stopped.is_empty() {
-        out.add(
-            LocalState::Ok,
-            SERVICE_NAME,
-            &format!(
-                "running_services={}|stopped_service=0|ignored_services={ignored_services}",
-                services.len()
-            ),
-            "All Services running",
-        );
+        out.row(LocalState::Ok, SERVICE_NAME, "All Services running")
+            .with_metric("running_services", services.len().to_string())
+            .with_metric("stopped_service", "0")
+            .with_metric("ignored_services", ignored_services.to_string());
     } else {
-        out.add(
+        out.row(
             LocalState::Crit,
             SERVICE_NAME,
-            &format!(
-                "running_services={}|stopped_service={}|ignored_services={ignored_services}",
-                services.len() - stopped.len(),
-                stopped.len()
-            ),
             &format!("Services: {} not running", stopped.join(", ")),
-        );
+        )
+        .with_metric(
+            "running_services",
+            (services.len() - stopped.len()).to_string(),
+        )
+        .with_metric("stopped_service", stopped.len().to_string())
+        .with_metric("ignored_services", ignored_services.to_string());
     }
 }
 

@@ -8,7 +8,7 @@ use crate::{
     config::Config,
     exec::CommandRunner,
     opnsense::config_xml,
-    plugin::output::{LocalSection, LocalState},
+    plugin::output::{LocalSection, LocalState, collect_sections},
     update::{self, UpdateOutcome},
 };
 
@@ -20,7 +20,7 @@ pub fn plugin_output(config_path: &Path, config: &mut Config) -> Result<String> 
     let mut sections = checks::collect_all(config, &opnsense_config, &runner);
     sections.push(version_section(config, update_result));
 
-    Ok(LocalSection::finalize(sections))
+    Ok(collect_sections(sections))
 }
 
 fn version_section(config: &Config, update_result: Result<UpdateOutcome>) -> LocalSection {
@@ -29,44 +29,49 @@ fn version_section(config: &Config, update_result: Result<UpdateOutcome>) -> Loc
 
     match update_result {
         Ok(UpdateOutcome::Disabled) => {
-            section.add(
-                LocalState::Ok,
-                "OPNCheck Version",
-                "status=disabled",
-                &format!("Up to date ({version}), {}", next_check_summary(config)),
-            );
+            section
+                .row(
+                    LocalState::Ok,
+                    "OPNCheck Version",
+                    &format!("Up to date ({version}), {}", next_check_summary(config)),
+                )
+                .with_metric("status", "disabled");
         }
         Ok(UpdateOutcome::NotDue | UpdateOutcome::UpToDate { .. }) => {
-            section.add(
-                LocalState::Ok,
-                "OPNCheck Version",
-                "status=ok",
-                &format!("Up to date ({version}), {}", next_check_summary(config)),
-            );
+            section
+                .row(
+                    LocalState::Ok,
+                    "OPNCheck Version",
+                    &format!("Up to date ({version}), {}", next_check_summary(config)),
+                )
+                .with_metric("status", "ok");
         }
         Ok(UpdateOutcome::UpdateAvailable { current: _, latest }) => {
-            section.add(
-                LocalState::Ok,
-                "OPNCheck Version",
-                "status=update_available",
-                &format!("Update available: {latest} (current: {version})"),
-            );
+            section
+                .row(
+                    LocalState::Ok,
+                    "OPNCheck Version",
+                    &format!("Update available: {latest} (current: {version})"),
+                )
+                .with_metric("status", "update_available");
         }
         Ok(UpdateOutcome::Updated { from: _, to }) => {
-            section.add(
-                LocalState::Ok,
-                "OPNCheck Version",
-                "status=updated",
-                &format!("Up to date ({to}), {}", next_check_summary(config)),
-            );
+            section
+                .row(
+                    LocalState::Ok,
+                    "OPNCheck Version",
+                    &format!("Up to date ({to}), {}", next_check_summary(config)),
+                )
+                .with_metric("status", "updated");
         }
         Err(err) => {
-            section.add(
-                LocalState::Crit,
-                "OPNCheck Version",
-                "status=err",
-                &format!("Auto-update failed: {err:#}"),
-            );
+            section
+                .row(
+                    LocalState::Crit,
+                    "OPNCheck Version",
+                    &format!("Auto-update failed: {err:#}"),
+                )
+                .with_metric("status", "err");
         }
     }
 

@@ -46,12 +46,12 @@ impl Check for Nginx {
             .json::<VtsStatus>()?;
 
         let uptime = response.load_msec.map(nginx_uptime).unwrap_or(0.0);
-        out.add(
+        out.row(
             LocalState::Ok,
             "Nginx Uptime",
-            &format!("uptime={uptime:.0}"),
             "Nginx VTS status socket responding",
-        );
+        )
+        .with_metric("uptime", format!("{uptime:.0}"));
         Ok(out)
     }
 }
