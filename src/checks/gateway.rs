@@ -52,7 +52,7 @@ impl Check for Gateway {
                 state,
                 &format!("Gateway {name}"),
                 &format!("rtt={delay}ms|rttsd={stddev}ms|loss={loss}"),
-                &format!("{status}, -> {address}, RTT {delay}ms"),
+                &format!("{status} -> {address}, RTT {delay}ms"),
             );
         }
 
