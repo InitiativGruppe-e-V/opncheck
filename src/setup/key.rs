@@ -1,4 +1,4 @@
-use std::{fs, fs::OpenOptions, path::Path};
+use std::{fs, path::Path};
 
 use anyhow::{Context, Result, bail};
 use dialoguer::Input;
@@ -9,7 +9,6 @@ use crate::{
 };
 
 use super::{SetupStep, StepStatus, can_prompt, ensure_mode};
-use std::io::Write;
 
 pub(super) struct CheckmkKeyStep<'a> {
     options: &'a SetupOptions,
@@ -25,91 +24,112 @@ impl SetupStep for CheckmkKeyStep<'_> {
     const NAME: &'static str = "checkmk ssh key";
 
     fn run(&self) -> Result<StepStatus> {
-        let mut changed = false;
-        fs::create_dir_all(SSH_DIR).with_context(|| format!("failed to create {SSH_DIR}"))?;
-        changed |= ensure_mode(Path::new(SSH_DIR), 0o700)
-            .with_context(|| format!("failed to set permissions on {SSH_DIR}"))?;
+        let auth_keys_path = Path::new(AUTHORIZED_KEYS);
+        let mut lines = self.read_authorized_keys(auth_keys_path)?;
 
-        if !Path::new(AUTHORIZED_KEYS).exists() {
-            OpenOptions::new()
-                .create_new(true)
-                .write(true)
-                .open(AUTHORIZED_KEYS)
-                .with_context(|| format!("failed to create {AUTHORIZED_KEYS}"))?;
-            changed = true;
+        let target_idx = lines
+            .iter()
+            .position(|l| l.contains(CHECKMK_AGENT) && l.contains("ssh-ed25519"));
+
+        if let Some(idx) = target_idx {
+            self.handle_existing_key(auth_keys_path, &mut lines, idx)
+        } else {
+            self.handle_missing_key(auth_keys_path, &mut lines)
         }
-        changed |= ensure_mode(Path::new(AUTHORIZED_KEYS), 0o600)
-            .with_context(|| format!("failed to set permissions on {AUTHORIZED_KEYS}"))?;
+    }
+}
 
-        let Some(key) = checkmk_key(self.options)? else {
-            return Ok(if changed {
-                StepStatus::Changed
-            } else {
-                StepStatus::Skipped
-            });
+impl CheckmkKeyStep<'_> {
+    fn read_authorized_keys(&self, path: &Path) -> Result<Vec<String>> {
+        if !path.exists() {
+            return Ok(Vec::new());
+        }
+        let content =
+            fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
+        Ok(content.lines().map(String::from).collect())
+    }
+
+    fn format_key_line(&self, key: &str) -> String {
+        format!(
+            "command=\"{}\",no-pty,no-port-forwarding,no-X11-forwarding,no-agent-forwarding {}",
+            CHECKMK_AGENT,
+            key.trim()
+        )
+    }
+
+    fn handle_existing_key(
+        &self,
+        path: &Path,
+        lines: &mut [String],
+        idx: usize,
+    ) -> Result<StepStatus> {
+        let Some(cli_key) = &self.options.checkmk_key else {
+            return Ok(StepStatus::Unchanged);
         };
 
-        changed |= ensure_authorized_key(Path::new(AUTHORIZED_KEYS), CHECKMK_AGENT, &key)?;
-
-        Ok(if changed {
-            StepStatus::Changed
+        let new_line = self.format_key_line(cli_key);
+        if lines[idx] == new_line {
+            let mode_changed = ensure_mode(path, 0o600)?;
+            Ok(if mode_changed {
+                StepStatus::Changed
+            } else {
+                StepStatus::Unchanged
+            })
         } else {
-            StepStatus::Unchanged
-        })
+            lines[idx] = new_line;
+            self.write_authorized_keys(path, lines)?;
+            Ok(StepStatus::Changed)
+        }
+    }
+
+    fn handle_missing_key(&self, path: &Path, lines: &mut Vec<String>) -> Result<StepStatus> {
+        let Some(key) = get_checkmk_key(self.options)? else {
+            return Ok(StepStatus::Skipped);
+        };
+
+        let ssh_dir = Path::new(SSH_DIR);
+        if !ssh_dir.exists() {
+            fs::create_dir_all(ssh_dir)
+                .with_context(|| format!("failed to create {}", ssh_dir.display()))?;
+            ensure_mode(ssh_dir, 0o700)?;
+        }
+
+        lines.push(self.format_key_line(&key));
+        self.write_authorized_keys(path, lines)?;
+        Ok(StepStatus::Changed)
+    }
+
+    fn write_authorized_keys(&self, path: &Path, lines: &[String]) -> Result<()> {
+        let mut content = lines.join("\n");
+        if !content.is_empty() {
+            content.push('\n');
+        }
+        fs::write(path, content).with_context(|| format!("failed to write {}", path.display()))?;
+        ensure_mode(path, 0o600)?;
+        Ok(())
     }
 }
 
-fn checkmk_key(options: &SetupOptions) -> Result<Option<String>> {
-    if let Some(key) = options.checkmk_key.as_deref() {
-        return validate_checkmk_key(key);
-    }
 
-    if options.yes || !can_prompt() {
+fn get_checkmk_key(options: &SetupOptions) -> Result<Option<String>> {
+    let raw: &str = if let Some(k) = options.checkmk_key.as_deref() {
+        k
+    } else if options.yes || !can_prompt() {
         return Ok(None);
-    }
+    } else {
+        &Input::<String>::new()
+            .with_prompt("Paste the ssh-ed25519 public key of your Checkmk instance")
+            .allow_empty(true)
+            .interact()
+            .context("failed to read setup answer")?
+    };
 
-    let key: String = Input::new()
-        .with_prompt("Paste the ssh-ed25519 public key of your Checkmk instance")
-        .allow_empty(true)
-        .interact()
-        .context("failed to read setup answer")?;
-    validate_checkmk_key(key.trim())
-}
-
-fn validate_checkmk_key(key: &str) -> Result<Option<String>> {
-    let key = key.trim();
+    let key = raw.trim();
     if key.is_empty() {
         return Ok(None);
     }
-
     if !key.starts_with("ssh-ed25519 ") {
         bail!("Checkmk key must be an ssh-ed25519 public key");
     }
-
     Ok(Some(key.to_owned()))
-}
-
-fn ensure_authorized_key(path: &Path, command: &str, key: &str) -> Result<bool> {
-    let entry = forced_command_entry(command, key);
-    let existing = fs::read_to_string(path).unwrap_or_default();
-    if existing.lines().any(|line| line.trim() == entry) {
-        return Ok(false);
-    }
-
-    let mut file = OpenOptions::new()
-        .append(true)
-        .open(path)
-        .with_context(|| format!("failed to open {}", path.display()))?;
-    if !existing.is_empty() && !existing.ends_with('\n') {
-        writeln!(file)
-            .with_context(|| format!("failed to append newline to {}", path.display()))?;
-    }
-    writeln!(file, "{entry}")
-        .with_context(|| format!("failed to append Checkmk key to {}", path.display()))?;
-
-    Ok(true)
-}
-
-fn forced_command_entry(command: &str, key: &str) -> String {
-    format!("command=\"{command}\" {key}")
 }
