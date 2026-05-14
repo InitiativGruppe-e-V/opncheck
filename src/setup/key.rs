@@ -44,8 +44,8 @@ impl CheckmkKeyStep<'_> {
         if !path.exists() {
             return Ok(Vec::new());
         }
-        let content =
-            fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
+        let content = fs::read_to_string(path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
         Ok(content.lines().map(String::from).collect())
     }
 
@@ -110,7 +110,6 @@ impl CheckmkKeyStep<'_> {
     }
 }
 
-
 fn get_checkmk_key(options: &SetupOptions) -> Result<Option<String>> {
     let raw: &str = if let Some(k) = options.checkmk_key.as_deref() {
         k
@@ -118,7 +117,7 @@ fn get_checkmk_key(options: &SetupOptions) -> Result<Option<String>> {
         return Ok(None);
     } else {
         &Input::<String>::new()
-            .with_prompt("Paste the ssh-ed25519 public key of your Checkmk instance")
+            .with_prompt("Enter the ssh-ed25519 public key of your CheckMK instance")
             .allow_empty(true)
             .interact()
             .context("failed to read setup answer")?
