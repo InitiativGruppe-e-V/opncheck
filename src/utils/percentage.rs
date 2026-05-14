@@ -9,7 +9,7 @@ impl Percentage {
     pub const ZERO: Percentage = Percentage(0.0);
 
     pub fn new(value: f64) -> Option<Self> {
-        if value.is_finite() && value >= 0.0 && value <= 1.0 {
+        if value.is_finite() && (0.0..=1.0).contains(&value) {
             Some(Self(value))
         } else {
             None
@@ -32,7 +32,7 @@ impl<'de> Deserialize<'de> for Percentage {
     {
         let string: Cow<str> = Cow::deserialize(deserializer)?;
         let string = string.trim();
-        let pct = if let Some(numeric) = string.strip_suffix('%').map(|s| s.trim()) {
+        let pct = if let Some(numeric) = string.strip_suffix('%').map(str::trim) {
             let v: f64 = numeric.parse().map_err(Error::custom)?;
             v / 100.0
         } else {

@@ -62,7 +62,7 @@ fn write_services_result(out: &mut LocalSection, services: &[Service], ignored_s
         out.row(
             LocalState::Crit,
             SERVICE_NAME,
-            &format!("Services: {} not running", stopped.join(", ")),
+            format!("Services: {} not running", stopped.join(", ")),
         )
         .with_metric(
             "running_services",

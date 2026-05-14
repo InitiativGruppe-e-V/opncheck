@@ -42,7 +42,7 @@ impl Display for LocalSection {
             return Ok(());
         }
         writeln!(f, "<<<local:sep(0)>>>")?;
-        for row in self.rows.iter() {
+        for row in &self.rows {
             writeln!(f, "{row}")?;
         }
         Ok(())
@@ -140,7 +140,7 @@ where
         .join("\n");
 
     if output.is_empty() {
-        format!("")
+        String::new()
     } else {
         format!("{output}\n")
     }

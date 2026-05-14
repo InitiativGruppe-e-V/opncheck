@@ -77,8 +77,8 @@ impl Check for Kea {
 
             out.row(
                 state,
-                &format!("Kea DHCP Pool subnet {subnet} pool {pool}"),
-                &format!("{assigned}/{total} addresses used ({usage:.2}%)"),
+                format!("Kea DHCP Pool subnet {subnet} pool {pool}"),
+                format!("{assigned}/{total} addresses used ({usage:.2}%)"),
             )
             .with_metric("used", assigned.to_string())
             .with_metric("total", total.to_string())

@@ -33,7 +33,7 @@ fn version_section(config: &Config, update_result: Result<UpdateOutcome>) -> Loc
                 .row(
                     LocalState::Ok,
                     "OPNCheck Version",
-                    &format!("Up to date ({version}), {}", next_check_summary(config)),
+                    format!("Up to date ({version}), {}", next_check_summary(config)),
                 )
                 .with_metric("status", "disabled");
         }
@@ -42,7 +42,7 @@ fn version_section(config: &Config, update_result: Result<UpdateOutcome>) -> Loc
                 .row(
                     LocalState::Ok,
                     "OPNCheck Version",
-                    &format!("Up to date ({version}), {}", next_check_summary(config)),
+                    format!("Up to date ({version}), {}", next_check_summary(config)),
                 )
                 .with_metric("status", "ok");
         }
@@ -51,7 +51,7 @@ fn version_section(config: &Config, update_result: Result<UpdateOutcome>) -> Loc
                 .row(
                     LocalState::Ok,
                     "OPNCheck Version",
-                    &format!("Update available: {latest} (current: {version})"),
+                    format!("Update available: {latest} (current: {version})"),
                 )
                 .with_metric("status", "update_available");
         }
@@ -60,7 +60,7 @@ fn version_section(config: &Config, update_result: Result<UpdateOutcome>) -> Loc
                 .row(
                     LocalState::Ok,
                     "OPNCheck Version",
-                    &format!("Up to date ({to}), {}", next_check_summary(config)),
+                    format!("Up to date ({to}), {}", next_check_summary(config)),
                 )
                 .with_metric("status", "updated");
         }
@@ -69,7 +69,7 @@ fn version_section(config: &Config, update_result: Result<UpdateOutcome>) -> Loc
                 .row(
                     LocalState::Crit,
                     "OPNCheck Version",
-                    &format!("Auto-update failed: {err:#}"),
+                    format!("Auto-update failed: {err:#}"),
                 )
                 .with_metric("status", "err");
         }

@@ -46,7 +46,7 @@ impl Check for Wireguard {
             let display_name = opnsense_config
                 .wireguard_peer_name(peer.public_key)
                 .unwrap_or(peer.public_key);
-            out.row(state, &format!("WireGuard: {display_name}"), &summary)
+            out.row(state, format!("WireGuard: {display_name}"), &summary)
                 .with_metric("if_in_octets", peer.received.to_string())
                 .with_metric("if_out_octets", peer.sent.to_string())
                 .with_metric("latest_handshake_age", age_secs.to_string());

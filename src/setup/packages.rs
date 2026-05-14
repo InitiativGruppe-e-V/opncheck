@@ -36,17 +36,13 @@ impl SetupStep for PackagesStep {
         let stderr_reader = BufReader::new(stderr);
 
         // Print stdout lines indented and gray
-        for line in stdout_reader.lines() {
-            if let Ok(line) = line {
-                println!("    {}", style(line).dim());
-            }
+        for line in stdout_reader.lines().map_while(Result::ok) {
+            println!("    {}", style(line).dim());
         }
 
         // Print stderr lines indented and gray
-        for line in stderr_reader.lines() {
-            if let Ok(line) = line {
-                eprintln!("    {}", style(line).dim());
-            }
+        for line in stderr_reader.lines().map_while(Result::ok) {
+            eprintln!("    {}", style(line).dim());
         }
 
         let status = child.wait().context("failed to wait for pkg install")?;

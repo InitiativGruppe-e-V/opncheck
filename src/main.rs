@@ -41,7 +41,7 @@ fn main() -> Result<()> {
             }
         }
         Command::Setup(options) => {
-            setup::run(&cli.config, options)?;
+            setup::run(&cli.config, &options)?;
         }
     }
     Ok(())

@@ -71,7 +71,7 @@ fn write_audit_result(out: &mut LocalSection, audit: &PkgAuditResponse) {
     out.row(
         LocalState::Warn,
         SERVICE_NAME,
-        &format!("Vulnerable packages: {}", audit.summary()),
+        format!("Vulnerable packages: {}", audit.summary()),
     )
     .with_metric("packages", package_count.to_string())
     .with_metric("issues", issue_count.to_string());

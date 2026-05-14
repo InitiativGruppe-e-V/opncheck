@@ -52,35 +52,31 @@ impl Check for Unbound {
         out.row(LocalState::Ok, "Unbound DNS", "Unbound running")
             .with_metric(
                 "dns_successes",
-                stats.get("num_queries").map(String::as_str).unwrap_or("0"),
+                stats.get("num_queries").map_or("0", String::as_str),
             )
             .with_metric(
                 "dns_recursion",
                 stats
                     .get("num_recursivereplies")
-                    .map(String::as_str)
-                    .unwrap_or("0"),
+                    .map_or("0", String::as_str),
             )
             .with_metric(
                 "dns_cachehits",
                 stats
                     .get("num_cachehits")
-                    .map(String::as_str)
-                    .unwrap_or("0"),
+                    .map_or("0", String::as_str),
             )
             .with_metric(
                 "dns_cachemiss",
                 stats
                     .get("num_cachemiss")
-                    .map(String::as_str)
-                    .unwrap_or("0"),
+                    .map_or("0", String::as_str),
             )
             .with_metric(
                 "avg_response_time",
                 stats
                     .get("recursion_time_avg")
-                    .map(String::as_str)
-                    .unwrap_or("0"),
+                    .map_or("0", String::as_str),
             );
         Ok(out)
     }

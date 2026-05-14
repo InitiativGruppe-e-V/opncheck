@@ -14,6 +14,7 @@ pub struct Config {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
+#[derive(Default)]
 pub struct Checks {
     pub skip: BTreeSet<String>,
     pub services: Services,
@@ -49,15 +50,6 @@ pub struct Updates {
     pub last_checked: Option<Timestamp>,
 }
 
-impl Default for Checks {
-    fn default() -> Self {
-        Self {
-            skip: BTreeSet::new(),
-            services: Services::default(),
-            wireguard: Wireguard::default(),
-        }
-    }
-}
 
 impl Default for Services {
     fn default() -> Self {
@@ -108,8 +100,7 @@ impl Updates {
 
         Some(
             self.last_checked
-                .map(|last_checked| last_checked + self.interval)
-                .unwrap_or_else(Timestamp::now),
+                .map_or_else(Timestamp::now, |last_checked| last_checked + self.interval),
         )
     }
 }

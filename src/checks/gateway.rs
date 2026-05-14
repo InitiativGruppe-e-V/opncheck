@@ -50,8 +50,8 @@ impl Check for Gateway {
 
             out.row(
                 state,
-                &format!("Gateway {name}"),
-                &format!("{status} -> {address}, RTT {delay}ms"),
+                format!("Gateway {name}"),
+                format!("{status} -> {address}, RTT {delay}ms"),
             )
             .with_metric("rtt", format!("{delay}ms"))
             .with_metric("rttsd", format!("{stddev}ms"))

@@ -43,12 +43,12 @@ impl CommandRunner {
         self.run_timeout(program, args, self.default_timeout)
     }
 
-    pub fn run_timeout<I, S>(&self, program: &str, args: I, _timeout: Duration) -> Result<String>
+    pub fn run_timeout<I, S>(&self, program: &str, args: I, timeout: Duration) -> Result<String>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
     {
-        let output = self.run_timeout_output(program, args, _timeout)?;
+        let output = self.run_timeout_output(program, args, timeout)?;
         if !output.success() {
             return Ok(String::new());
         }

@@ -45,7 +45,7 @@ impl Check for Nginx {
             .error_for_status()?
             .json::<VtsStatus>()?;
 
-        let uptime = response.load_msec.map(nginx_uptime).unwrap_or(0.0);
+        let uptime = response.load_msec.map_or(0.0, nginx_uptime);
         out.row(
             LocalState::Ok,
             "Nginx Uptime",
@@ -65,7 +65,6 @@ struct VtsStatus {
 fn nginx_uptime(start_msec: f64) -> f64 {
     let now_msec = SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_millis() as f64)
-        .unwrap_or(start_msec);
+        .map_or(start_msec, |duration| duration.as_millis() as f64);
     ((now_msec - start_msec) / 1000.0).max(0.0)
 }

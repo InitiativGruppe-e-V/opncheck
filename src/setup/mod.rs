@@ -47,21 +47,21 @@ pub(super) trait SetupStep {
     fn run(&self) -> Result<StepStatus>;
 }
 
-pub fn run(config_path: &Path, options: SetupOptions) -> Result<()> {
+pub fn run(config_path: &Path, options: &SetupOptions) -> Result<()> {
     println!("{}", style("opncheck setup").bold().underlined());
     println!();
 
-    run_step(binary::BinaryStep)?;
-    run_step(plugin::PluginStep)?;
-    run_step(packages::PackagesStep)?;
-    run_step(key::CheckmkKeyStep::new(&options))?;
-    run_step(config::ConfigStep::new(config_path, &options))?;
+    run_step(&binary::BinaryStep)?;
+    run_step(&plugin::PluginStep)?;
+    run_step(&packages::PackagesStep)?;
+    run_step(&key::CheckmkKeyStep::new(options))?;
+    run_step(&config::ConfigStep::new(config_path, options))?;
 
     println!("\n{}", style("Setup completed.").bold().green());
     Ok(())
 }
 
-fn run_step<S: SetupStep>(step: S) -> Result<()> {
+fn run_step<S: SetupStep>(step: &S) -> Result<()> {
     let status = step
         .run()
         .with_context(|| format!("setup step failed: {}", S::NAME))?;
