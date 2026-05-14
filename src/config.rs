@@ -7,15 +7,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
-    pub paths: Paths,
     pub checks: Checks,
     pub security: Security,
     pub updates: Updates,
 }
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Paths {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
