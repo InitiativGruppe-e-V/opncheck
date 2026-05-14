@@ -5,7 +5,7 @@ use serde::{Deserialize, Deserializer, de::Error};
 pub struct Percentage(f64);
 
 impl Percentage {
-    pub const HUNDRED: Percentage = Percentage(100.0);
+    pub const HUNDRED: Percentage = Percentage(1.0);
     pub const ZERO: Percentage = Percentage(0.0);
 
     pub fn new(value: f64) -> Option<Self> {
