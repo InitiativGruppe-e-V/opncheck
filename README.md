@@ -26,6 +26,7 @@ The `setup` command:
 - Configures the plugin symlink in `/usr/local/lib/check_mk_agent/plugins/`
 - Sets up restricted SSH access in `/root/.ssh/authorized_keys2`
 - Generates a default configuration in `/usr/local/etc/opncheck.toml`
+- Optionally configures auto-updates of the binary in regular intervals
 
 For unattended setup:
 ```sh
