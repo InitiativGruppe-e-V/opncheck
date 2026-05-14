@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{MvcGeneral, enabled::deserialize_optional_bool};
+use super::{enabled::EnabledFlag, MvcGeneral};
 
 /// `<OPNsense><wireguard>…</wireguard></OPNsense>` per opnsense/core
 /// `src/opnsense/mvc/app/models/OPNsense/Wireguard/{General,Client}.xml`.
@@ -22,7 +22,7 @@ impl WireguardSection {
             .clients
             .peers
             .iter()
-            .filter(|peer| peer.enabled == Some(true))
+            .filter(|peer| peer.enabled.is_enabled())
             .find(|peer| peer.pubkey.as_deref() == Some(pubkey))
             .and_then(|peer| peer.name.as_deref())
     }
@@ -44,8 +44,8 @@ struct WireguardPeers {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 struct WireguardPeer {
-    #[serde(default, deserialize_with = "deserialize_optional_bool")]
-    enabled: Option<bool>,
+    #[serde(default)]
+    enabled: EnabledFlag,
     name: Option<String>,
     pubkey: Option<String>,
 }

@@ -3,6 +3,8 @@ use std::{fs, path::Path};
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
+use self::enabled::EnabledFlag;
+
 mod enabled;
 mod wireguard;
 
@@ -58,13 +60,13 @@ struct OPNsenseSection {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 struct LegacyServiceSection {
-    #[serde(default, deserialize_with = "enabled::deserialize_optional_bool")]
-    enable: Option<bool>,
+    #[serde(default)]
+    enable: EnabledFlag,
 }
 
 impl LegacyServiceSection {
     fn is_explicitly_disabled(&self) -> bool {
-        self.enable == Some(false)
+        self.enable.is_explicitly_disabled()
     }
 }
 
@@ -89,17 +91,17 @@ impl MvcServiceSection {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub(super) struct MvcGeneral {
-    #[serde(default, deserialize_with = "enabled::deserialize_optional_bool")]
-    enabled: Option<bool>,
+    #[serde(default)]
+    enabled: EnabledFlag,
 }
 
 impl MvcGeneral {
     fn is_enabled_or_present(&self) -> bool {
-        self.enabled.unwrap_or(true)
+        self.enabled.is_enabled_or_present()
     }
 
     fn is_explicitly_disabled(&self) -> bool {
-        self.enabled == Some(false)
+        self.enabled.is_explicitly_disabled()
     }
 }
 
