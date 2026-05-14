@@ -42,10 +42,9 @@ impl Display for LocalSection {
             return Ok(());
         }
         writeln!(f, "<<<local:sep(0)>>>")?;
-        for row in &self.rows {
-            writeln!(f, "{row}")?;
-        }
-        Ok(())
+        let rows: Vec<String> = self.rows.iter().map(|r| r.to_string()).collect();
+        let rows = rows.join("\n");
+        write!(f, "{rows}")
     }
 }
 
