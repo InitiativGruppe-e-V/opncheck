@@ -5,10 +5,10 @@ mod packages;
 mod plugin;
 
 use std::{
-    fs,
-    io::{self, IsTerminal},
-    os::unix::fs::PermissionsExt,
-    path::{Path, PathBuf},
+    fs::{self, File},
+    io::{self, BufReader, IsTerminal, Read},
+    os::unix::fs::{MetadataExt, PermissionsExt},
+    path::Path,
 };
 
 use anyhow::{Context, Result};
@@ -91,26 +91,42 @@ pub(super) fn ensure_mode(path: &Path, mode: u32) -> Result<bool> {
     Ok(true)
 }
 
-pub(super) fn files_have_same_contents(left: &Path, right: &Path) -> Result<bool> {
-    if !right.exists() {
+pub(super) fn paths_are_same_file(left: &Path, right: &Path) -> Result<bool> {
+    let left = File::open(left)?;
+    let right = File::open(right)?;
+    let lmeta = left.metadata()?;
+    let rmeta = right.metadata()?;
+    let ino_eq = lmeta.ino() == rmeta.ino();
+    let dev_eq = lmeta.dev() == rmeta.dev();
+    Ok(ino_eq && dev_eq)
+}
+
+pub(super) fn files_identical(left: &Path, right: &Path) -> Result<bool> {
+    let fa = File::open(left)?;
+    let fb = File::open(right)?;
+
+    if fa.metadata()?.len() != fb.metadata()?.len() {
         return Ok(false);
     }
 
-    let left = fs::read(left).with_context(|| format!("failed to read {}", left.display()))?;
-    let right = fs::read(right).with_context(|| format!("failed to read {}", right.display()))?;
-    Ok(left == right)
-}
+    let mut ra = BufReader::new(fa);
+    let mut rb = BufReader::new(fb);
 
-pub(super) fn paths_are_same_file(left: &Path, right: &Path) -> Result<bool> {
-    let left = canonicalize_if_exists(left)?;
-    let right = canonicalize_if_exists(right)?;
-    Ok(matches!((left, right), (Some(left), Some(right)) if left == right))
-}
+    let mut ba = [0u8; 8 * 1024];
+    let mut bb = [0u8; 8 * 1024];
 
-fn canonicalize_if_exists(path: &Path) -> Result<Option<PathBuf>> {
-    match fs::canonicalize(path) {
-        Ok(path) => Ok(Some(path)),
-        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
-        Err(err) => Err(err).with_context(|| format!("failed to inspect {}", path.display())),
+    loop {
+        let na = ra.read(&mut ba)?;
+        let nb = rb.read(&mut bb)?;
+
+        if na != nb {
+            return Ok(false);
+        }
+        if na == 0 {
+            return Ok(true);
+        }
+        if ba[..na] != bb[..nb] {
+            return Ok(false);
+        }
     }
 }

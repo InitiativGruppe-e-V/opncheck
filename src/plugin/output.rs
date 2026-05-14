@@ -27,13 +27,6 @@ impl LocalSection {
             summary: summary.to_string(),
         })
     }
-
-    pub fn inject(&mut self, key: impl Display, value: impl Display) -> &mut Self {
-        if let Some(row) = self.rows.first_mut() {
-            row.with_metric(key, value);
-        }
-        self
-    }
 }
 
 impl Display for LocalSection {
