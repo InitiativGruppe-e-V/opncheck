@@ -14,6 +14,7 @@ pub mod meta;
 pub mod nginx;
 pub mod pkgaudit;
 pub mod services;
+pub mod suricata;
 pub mod unbound;
 pub mod utils;
 pub mod wireguard;
@@ -38,6 +39,7 @@ pub fn all_checks() -> &'static [&'static dyn Check] {
         &unbound::Unbound,
         &nginx::Nginx,
         &wireguard::Wireguard,
+        &suricata::Suricata,
     ]
 }
 

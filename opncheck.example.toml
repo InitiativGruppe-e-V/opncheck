@@ -14,6 +14,16 @@ ignored = ["iperf"]
 stale_warn_seconds = 300
 stale_crit_seconds = 900
 
+[checks.suricata]
+# OPNsense Suricata EVE JSON log. The check reports newly encountered alert/drop
+# events and only switches to WARN when an event was blocked.
+log_path = "/var/log/suricata/eve.json"
+state_path = "/var/db/opncheck/suricata-state.json"
+max_summary_events = 5
+include_allowed_in_summary = true
+# On first run, start at the end of the current log to avoid reporting old events.
+initialize_from_end = true
+
 [security]
 # Keep this enabled in production. Timeouts protect CheckMK from failing the check repeatedly.
 plugin_timeout_seconds = 60

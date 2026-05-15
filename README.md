@@ -10,6 +10,7 @@ Supported checks:
 - Gateway health and DHCP lease counts
 - Unbound and Nginx status
 - WireGuard peers and handshake staleness
+- Suricata IDS/IPS alert/drop events
 
 ## Installation
 
@@ -53,6 +54,13 @@ ignored = ["iperf"]
 [checks.wireguard]
 stale_warn_seconds = 300
 stale_crit_seconds = 900
+
+[checks.suricata]
+log_path = "/var/log/suricata/eve.json"
+state_path = "/var/db/opncheck/suricata-state.json"
+max_summary_events = 5
+include_allowed_in_summary = true
+initialize_from_end = true
 ```
 
 The effective configuration can be inspected with `opncheck config`.

@@ -1,4 +1,8 @@
-use std::{collections::BTreeSet, fs, path::Path};
+use std::{
+    collections::BTreeSet,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{Context, Result};
 use jiff::{SignedDuration, Timestamp};
@@ -19,6 +23,7 @@ pub struct Checks {
     pub skip: BTreeSet<String>,
     pub services: Services,
     pub wireguard: Wireguard,
+    pub suricata: Suricata,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,6 +37,16 @@ pub struct Services {
 pub struct Wireguard {
     pub stale_warn_seconds: u64,
     pub stale_crit_seconds: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Suricata {
+    pub log_path: PathBuf,
+    pub state_path: PathBuf,
+    pub max_summary_events: usize,
+    pub include_allowed_in_summary: bool,
+    pub initialize_from_end: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,7 +65,6 @@ pub struct Updates {
     pub last_checked: Option<Timestamp>,
 }
 
-
 impl Default for Services {
     fn default() -> Self {
         Self {
@@ -64,6 +78,18 @@ impl Default for Wireguard {
         Self {
             stale_warn_seconds: 300,
             stale_crit_seconds: 900,
+        }
+    }
+}
+
+impl Default for Suricata {
+    fn default() -> Self {
+        Self {
+            log_path: PathBuf::from("/var/log/suricata/eve.json"),
+            state_path: PathBuf::from("/var/db/opncheck/suricata-state.json"),
+            max_summary_events: 5,
+            include_allowed_in_summary: true,
+            initialize_from_end: true,
         }
     }
 }
