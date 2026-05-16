@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::plugin::output::{LocalSection, LocalState};
+use crate::output::{LocalSection, LocalState};
 
 use super::timings::format_latency;
 

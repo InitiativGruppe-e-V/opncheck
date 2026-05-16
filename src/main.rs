@@ -1,10 +1,20 @@
-use anyhow::Result;
-use clap::Parser;
-use opncheck::{
+pub mod checks;
+pub mod cli;
+pub mod config;
+pub mod output;
+pub mod runner;
+pub mod setup;
+pub mod update;
+pub mod utils;
+pub mod xml;
+
+use crate::{
     cli::{Cli, Command},
     config::Config,
-    plugin, setup, update,
 };
+
+use anyhow::Result;
+use clap::Parser;
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -17,7 +27,7 @@ fn main() -> Result<()> {
     match cli.command.unwrap_or(Command::Plugin) {
         Command::Plugin => {
             let mut config = Config::load(&cli.config)?;
-            print!("{}", plugin::plugin_output(&cli.config, &mut config)?);
+            print!("{}", output::plugin_output(&cli.config, &mut config)?);
         }
         Command::Config => {
             let config = Config::load(&cli.config)?;

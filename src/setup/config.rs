@@ -3,9 +3,9 @@ use std::{fs, path::Path};
 use anyhow::{Context, Result};
 use dialoguer::Confirm;
 
-use crate::{cli::SetupOptions, config::Config};
+use crate::{cli::SetupOptions, config::Config, utils::fs::ensure_mode};
 
-use super::{SetupStep, StepStatus, can_prompt, ensure_mode};
+use super::{SetupStep, StepStatus, can_prompt};
 
 pub(super) struct ConfigStep<'a> {
     config_path: &'a Path,

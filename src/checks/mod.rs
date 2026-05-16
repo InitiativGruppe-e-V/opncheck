@@ -1,8 +1,8 @@
 use std::time::Instant;
 
 use crate::{
-    config::Config, exec::CommandRunner, opnsense::config_xml::OpnsenseConfig,
-    plugin::output::LocalSection,
+    config::Config, runner::CommandRunner, xml::OpnsenseConfig,
+    output::LocalSection, update::UpdateOutcome,
 };
 
 use self::meta::{status::CheckError, timings::CheckTiming};
@@ -47,6 +47,7 @@ pub fn collect_all(
     config: &Config,
     opnsense_config: &OpnsenseConfig,
     runner: &CommandRunner,
+    update_result: anyhow::Result<UpdateOutcome>,
 ) -> Vec<LocalSection> {
     let mut check_errors = Vec::new();
     let mut check_timings = Vec::new();
@@ -76,5 +77,6 @@ pub fn collect_all(
 
     sections.push(meta::timings::section(&check_timings));
     sections.push(meta::status::section(&check_errors));
+    sections.push(meta::version::section(config, update_result));
     sections
 }

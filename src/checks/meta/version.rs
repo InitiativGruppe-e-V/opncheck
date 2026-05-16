@@ -1,29 +1,12 @@
-pub mod output;
-
 use anyhow::Result;
-use std::path::Path;
 
 use crate::{
-    checks,
     config::Config,
-    exec::CommandRunner,
-    opnsense::config_xml,
-    plugin::output::{LocalSection, LocalState, collect_sections},
+    output::{LocalSection, LocalState},
     update::{self, UpdateOutcome},
 };
 
-pub fn plugin_output(config_path: &Path, config: &mut Config) -> Result<String> {
-    let runner = CommandRunner::new(config.security.command_timeout_seconds);
-    let update_result = update::check_and_update(config_path, config);
-    let opnsense_config = config_xml::read_config(Path::new("/conf/config.xml"))?;
-
-    let mut sections = checks::collect_all(config, &opnsense_config, &runner);
-    sections.push(version_section(config, update_result));
-
-    Ok(collect_sections(sections))
-}
-
-fn version_section(config: &Config, update_result: Result<UpdateOutcome>) -> LocalSection {
+pub fn section(config: &Config, update_result: Result<UpdateOutcome>) -> LocalSection {
     let mut section = LocalSection::new();
     let version = env!("CARGO_PKG_VERSION");
 

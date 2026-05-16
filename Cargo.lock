@@ -1000,7 +1000,6 @@ dependencies = [
  "quick-xml 0.40.0",
  "reqwest",
  "self_update",
- "semver",
  "serde",
  "serde_json",
  "sscanf",

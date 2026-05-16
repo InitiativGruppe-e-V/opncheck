@@ -6,9 +6,10 @@ use dialoguer::Input;
 use crate::{
     cli::SetupOptions,
     setup::{AUTHORIZED_KEYS, CHECKMK_AGENT, SSH_DIR},
+    utils::fs::ensure_mode,
 };
 
-use super::{SetupStep, StepStatus, can_prompt, ensure_mode};
+use super::{SetupStep, StepStatus, can_prompt};
 
 pub(super) struct CheckmkKeyStep<'a> {
     options: &'a SetupOptions,

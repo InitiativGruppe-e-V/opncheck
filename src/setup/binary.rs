@@ -5,9 +5,12 @@ use std::{
 
 use anyhow::{Context, Result};
 
-use crate::setup::{INSTALL_PATH, files_identical};
+use crate::{
+    setup::INSTALL_PATH,
+    utils::fs::{ensure_mode, files_identical, paths_are_same_file},
+};
 
-use super::{SetupStep, StepStatus, ensure_mode, paths_are_same_file};
+use super::{SetupStep, StepStatus};
 
 pub(super) struct BinaryStep;
 

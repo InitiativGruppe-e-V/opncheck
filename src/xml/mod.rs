@@ -3,7 +3,7 @@ use std::{fs, path::Path};
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
-use crate::opnsense::config_xml::wireguard::WireguardSection;
+use self::wireguard::WireguardSection;
 
 use self::enabled::EnabledFlag;
 

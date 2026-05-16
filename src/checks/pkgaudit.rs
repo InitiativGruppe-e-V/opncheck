@@ -6,9 +6,9 @@ use serde::Deserialize;
 use super::Check;
 use crate::{
     config::Config,
-    exec::CommandRunner,
-    opnsense::config_xml::OpnsenseConfig,
-    plugin::output::{LocalSection, LocalState},
+    runner::CommandRunner,
+    xml::OpnsenseConfig,
+    output::{LocalSection, LocalState},
 };
 
 const SERVICE_NAME: &str = "OPNsense Package Audit";

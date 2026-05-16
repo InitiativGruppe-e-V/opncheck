@@ -3,9 +3,9 @@ use serde::{Deserialize, de::IgnoredAny};
 use super::Check;
 use crate::{
     config::Config,
-    exec::CommandRunner,
-    opnsense::config_xml::OpnsenseConfig,
-    plugin::output::{LocalSection, LocalState},
+    runner::CommandRunner,
+    xml::OpnsenseConfig,
+    output::{LocalSection, LocalState},
 };
 
 pub struct Firmware;

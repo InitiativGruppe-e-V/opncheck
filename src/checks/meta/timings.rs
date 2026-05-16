@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::plugin::output::{LocalSection, LocalState};
+use crate::output::{LocalSection, LocalState};
 
 const WARN_AFTER: Duration = Duration::from_secs(10);
 
