@@ -3,14 +3,14 @@ use serde::{Deserialize, de::IgnoredAny};
 use super::Check;
 use crate::{
     config::Config,
-    runner::CommandRunner,
-    xml::OpnsenseConfig,
     output::{LocalSection, LocalState},
+    platform::{OPNSensePlatformData, OPNSenseX64},
+    runner::CommandRunner,
 };
 
 pub struct Firmware;
 
-impl Check for Firmware {
+impl Check<OPNSenseX64> for Firmware {
     fn name(&self) -> &'static str {
         "firmware"
     }
@@ -18,7 +18,7 @@ impl Check for Firmware {
     fn run(
         &self,
         _config: &Config,
-        _opnsense_config: &OpnsenseConfig,
+        _platform_data: &OPNSensePlatformData,
         runner: &CommandRunner,
     ) -> anyhow::Result<LocalSection> {
         let mut out = LocalSection::new();

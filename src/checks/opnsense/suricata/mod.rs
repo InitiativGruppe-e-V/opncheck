@@ -4,23 +4,23 @@ use super::Check;
 use crate::{
     config::Config,
     output::{LocalSection, LocalState},
+    platform::{OPNSensePlatformData, OPNSenseX64},
     runner::CommandRunner,
     skip_check,
-    xml::OpnsenseConfig,
 };
 
 mod eve;
 mod reader;
 mod state;
 
-use self::reader::{collect_from_file, rotated_log_path, CollectionResult};
-use self::state::{read_state, write_state, LogIdentity, SuricataState};
+use self::reader::{CollectionResult, collect_from_file, rotated_log_path};
+use self::state::{LogIdentity, SuricataState, read_state, write_state};
 
 const SERVICE_NAME: &str = "OPNsense Suricata Events";
 
 pub struct Suricata;
 
-impl Check for Suricata {
+impl Check<OPNSenseX64> for Suricata {
     fn name(&self) -> &'static str {
         "suricata"
     }
@@ -28,7 +28,7 @@ impl Check for Suricata {
     fn run(
         &self,
         config: &Config,
-        _opnsense_config: &OpnsenseConfig,
+        _platform_data: &OPNSensePlatformData,
         _runner: &CommandRunner,
     ) -> anyhow::Result<LocalSection> {
         let log_path = &config.checks.suricata.log_path;

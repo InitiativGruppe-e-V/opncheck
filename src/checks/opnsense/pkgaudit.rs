@@ -6,9 +6,9 @@ use serde::Deserialize;
 use super::Check;
 use crate::{
     config::Config,
-    runner::CommandRunner,
-    xml::OpnsenseConfig,
     output::{LocalSection, LocalState},
+    platform::{OPNSensePlatformData, OPNSenseX64},
+    runner::CommandRunner,
 };
 
 const SERVICE_NAME: &str = "OPNsense Package Audit";
@@ -17,7 +17,7 @@ const MAX_CVES_PER_PACKAGE: usize = 3;
 
 pub struct PkgAudit;
 
-impl Check for PkgAudit {
+impl Check<OPNSenseX64> for PkgAudit {
     fn name(&self) -> &'static str {
         "pkgaudit"
     }
@@ -25,7 +25,7 @@ impl Check for PkgAudit {
     fn run(
         &self,
         _config: &Config,
-        _opnsense_config: &OpnsenseConfig,
+        _platform_data: &OPNSensePlatformData,
         runner: &CommandRunner,
     ) -> anyhow::Result<LocalSection> {
         let mut out = LocalSection::new();

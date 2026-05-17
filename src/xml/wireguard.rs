@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{enabled::EnabledFlag, MvcGeneral};
+use super::{MvcGeneral, enabled::EnabledFlag};
 
 /// `<OPNsense><wireguard>…</wireguard></OPNsense>` per opnsense/core
 /// `src/opnsense/mvc/app/models/OPNsense/Wireguard/{General,Client}.xml`.

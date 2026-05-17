@@ -1,7 +1,7 @@
 mod binary;
 mod config;
-mod key;
-mod packages;
+#[cfg(all(target_os = "freebsd", target_arch = "x86_64"))]
+mod opnsense;
 mod plugin;
 
 use std::{
@@ -14,18 +14,13 @@ use console::{Emoji, Term, style};
 
 use crate::cli::SetupOptions;
 
-const INSTALL_PATH: &str = "/usr/local/bin/opncheck";
-const PLUGIN_PATH: &str = "/usr/local/lib/check_mk_agent/plugins/opncheck";
-const SSH_DIR: &str = "/root/.ssh";
-const AUTHORIZED_KEYS: &str = "/root/.ssh/authorized_keys2";
-const CHECKMK_AGENT: &str = "/usr/local/bin/check_mk_agent";
-
 static CHECKMARK: Emoji<'_, '_> = Emoji("✔", "OK");
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub(super) enum StepStatus {
     Changed,
     Unchanged,
+    #[cfg(all(target_os = "freebsd", target_arch = "x86_64"))]
     Skipped,
 }
 
@@ -34,6 +29,7 @@ impl StepStatus {
         match self {
             Self::Changed => style("changed").green().to_string(),
             Self::Unchanged => style("unchanged").dim().to_string(),
+            #[cfg(all(target_os = "freebsd", target_arch = "x86_64"))]
             Self::Skipped => style("skipped").yellow().to_string(),
         }
     }
@@ -51,8 +47,11 @@ pub fn run(config_path: &Path, options: &SetupOptions) -> Result<()> {
 
     run_step(&binary::BinaryStep)?;
     run_step(&plugin::PluginStep)?;
-    run_step(&packages::PackagesStep)?;
-    run_step(&key::CheckmkKeyStep::new(options))?;
+    #[cfg(all(target_os = "freebsd", target_arch = "x86_64"))]
+    {
+        run_step(&opnsense::PackagesStep)?;
+        run_step(&opnsense::CheckmkKeyStep::new(options))?;
+    }
     run_step(&config::ConfigStep::new(config_path, options))?;
 
     println!("\n{}", style("Setup completed.").bold().green());

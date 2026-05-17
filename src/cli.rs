@@ -3,10 +3,10 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]
-#[command(version, about = "OPNsense Checkmk FreeBSD agent plugin")]
+#[command(version, about = "Checkmk agent plugin for OPNsense and Linux hosts")]
 pub struct Cli {
-    #[arg(short, long, default_value = "/usr/local/etc/opncheck.toml")]
-    pub config: PathBuf,
+    #[arg(short, long)]
+    pub config: Option<PathBuf>,
 
     #[arg(long)]
     pub debug: bool,
@@ -17,7 +17,7 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Print plugin output for the stock Checkmk FreeBSD agent.
+    /// Print plugin output for the stock Checkmk agent.
     Plugin,
     /// Print a redacted view of the effective configuration.
     Config,

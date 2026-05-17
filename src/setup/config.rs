@@ -3,7 +3,12 @@ use std::{fs, path::Path};
 use anyhow::{Context, Result};
 use dialoguer::Confirm;
 
-use crate::{cli::SetupOptions, config::Config, utils::fs::ensure_mode};
+use crate::{
+    cli::SetupOptions,
+    config::Config,
+    platform::{CurrentPlatform, Platform},
+    utils::fs::ensure_mode,
+};
 
 use super::{SetupStep, StepStatus, can_prompt};
 
@@ -31,6 +36,10 @@ impl SetupStep for ConfigStep<'_> {
 
 fn ensure_config(config_path: &Path, options: &SetupOptions) -> Result<StepStatus> {
     let mut changed = false;
+    let state_dir = CurrentPlatform::state_dir();
+    fs::create_dir_all(state_dir)
+        .with_context(|| format!("failed to create state directory {}", state_dir.display()))?;
+
     let mut config = if config_path.exists() {
         let raw = fs::read_to_string(config_path)
             .with_context(|| format!("failed to read config {}", config_path.display()))?;

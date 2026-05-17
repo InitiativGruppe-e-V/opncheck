@@ -2,7 +2,7 @@ use std::{fs, io, os::unix::fs::symlink, path::Path};
 
 use anyhow::{Context, Result, bail};
 
-use crate::setup::{INSTALL_PATH, PLUGIN_PATH};
+use crate::platform::{CurrentPlatform, Platform};
 
 use super::{SetupStep, StepStatus};
 
@@ -12,7 +12,10 @@ impl SetupStep for PluginStep {
     const NAME: &'static str = "install plugin link";
 
     fn run(&self) -> Result<StepStatus> {
-        ensure_plugin_symlink(Path::new(PLUGIN_PATH), Path::new(INSTALL_PATH))
+        ensure_plugin_symlink(
+            CurrentPlatform::plugin_path(),
+            CurrentPlatform::install_path(),
+        )
     }
 }
 

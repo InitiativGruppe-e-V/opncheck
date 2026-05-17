@@ -8,6 +8,19 @@ skip = []
 # Default: ["iperf"] — matches iperf, iperf3, etc.
 ignored = ["iperf"]
 
+[checks.nginx]
+# OPNsense uses the VTS Unix socket. Linux auto-detects these local HTTP
+# status endpoints and skips the check when none responds.
+status_socket = "/var/run/nginx_status.sock"
+status_urls = [
+  "http://127.0.0.1/nginx_status",
+  "http://127.0.0.1/status",
+  "http://127.0.0.1/vts",
+  "http://localhost/nginx_status",
+  "http://localhost/status",
+  "http://localhost/vts",
+]
+
 [checks.wireguard]
 # Seconds since the last WireGuard handshake before alerting.
 # A peer that has never connected (latest_handshake=0) is always CRIT.
@@ -18,6 +31,8 @@ stale_crit_seconds = 900
 # OPNsense Suricata EVE JSON log. The check reports newly encountered alert/drop
 # events and only switches to WARN when an event was blocked.
 log_path = "/var/log/suricata/eve.json"
+# OPNsense default: /var/db/opncheck/suricata-state.json
+# Linux default: /var/lib/opncheck/suricata-state.json
 state_path = "/var/db/opncheck/suricata-state.json"
 max_summary_events = 5
 include_allowed_in_summary = true

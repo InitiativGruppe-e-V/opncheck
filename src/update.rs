@@ -5,13 +5,14 @@ use console::{Emoji, style};
 use jiff::{Timestamp, tz::TimeZone};
 use self_update::{Status, backends::github::Update, update::ReleaseUpdate};
 
-use crate::config::Config;
+use crate::{
+    config::Config,
+    platform::{CurrentPlatform, Platform},
+};
 
 const REPO_OWNER: &str = "initiativgruppe-e-v";
 const REPO_NAME: &str = "opncheck";
 const BIN_NAME: &str = "opncheck";
-const INSTALL_PATH: &str = "/usr/local/bin/opncheck";
-const TARGET: &str = "x86_64-unknown-freebsd";
 
 static CHECKMARK: Emoji<'_, '_> = Emoji("✔", "OK");
 static SPARKLES: Emoji<'_, '_> = Emoji("✨", "NEW");
@@ -73,8 +74,8 @@ fn update_builder() -> Result<Box<dyn ReleaseUpdate>> {
         .repo_owner(REPO_OWNER)
         .repo_name(REPO_NAME)
         .bin_name(BIN_NAME)
-        .bin_install_path(INSTALL_PATH)
-        .target(TARGET)
+        .bin_install_path(CurrentPlatform::install_path())
+        .target(CurrentPlatform::release_target())
         .identifier(BIN_NAME)
         .show_download_progress(false)
         .show_output(false)

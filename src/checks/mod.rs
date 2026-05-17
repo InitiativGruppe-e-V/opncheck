@@ -1,51 +1,53 @@
 use std::time::Instant;
 
 use crate::{
-    config::Config, runner::CommandRunner, xml::OpnsenseConfig,
-    output::LocalSection, update::UpdateOutcome,
+    config::Config,
+    output::LocalSection,
+    platform::{LinuxX64, OPNSenseX64, Platform},
+    runner::CommandRunner,
+    update::UpdateOutcome,
 };
 
 use self::meta::{status::CheckError, timings::CheckTiming};
 
-pub mod firmware;
-pub mod gateway;
-pub mod kea;
 pub mod meta;
-pub mod nginx;
-pub mod pkgaudit;
+pub mod opnsense;
 pub mod services;
-pub mod suricata;
-pub mod unbound;
 pub mod utils;
-pub mod wireguard;
 
-pub trait Check {
+pub trait Check<P: Platform>: Sync {
     fn name(&self) -> &'static str;
+
     fn run(
         &self,
         config: &Config,
-        opnsense_config: &OpnsenseConfig,
+        platform_data: &P::PlatformData,
         runner: &CommandRunner,
     ) -> anyhow::Result<LocalSection>;
 }
 
-pub fn all_checks() -> &'static [&'static dyn Check] {
+pub fn opnsense_checks() -> &'static [&'static dyn Check<OPNSenseX64>] {
     &[
-        &firmware::Firmware,
-        &pkgaudit::PkgAudit,
+        &opnsense::firmware::Firmware,
+        &opnsense::pkgaudit::PkgAudit,
         &services::Services,
-        &kea::Kea,
-        &gateway::Gateway,
-        &unbound::Unbound,
-        &nginx::Nginx,
-        &wireguard::Wireguard,
-        &suricata::Suricata,
+        &opnsense::kea::Kea,
+        &opnsense::gateway::Gateway,
+        &opnsense::unbound::Unbound,
+        &opnsense::nginx::Nginx,
+        &opnsense::wireguard::Wireguard,
+        &opnsense::suricata::Suricata,
     ]
 }
 
-pub fn collect_all(
+pub fn linux_checks() -> &'static [&'static dyn Check<LinuxX64>] {
+    &[&services::Services]
+}
+
+pub fn collect_all<P: Platform>(
     config: &Config,
-    opnsense_config: &OpnsenseConfig,
+    platform_data: &P::PlatformData,
+    checks: &'static [&'static dyn Check<P>],
     runner: &CommandRunner,
     update_result: anyhow::Result<UpdateOutcome>,
 ) -> Vec<LocalSection> {
@@ -53,10 +55,10 @@ pub fn collect_all(
     let mut check_timings = Vec::new();
     let mut sections = Vec::new();
 
-    for check in all_checks() {
+    for check in checks {
         if config.check_enabled(check.name()) {
             let started = Instant::now();
-            let out = check.run(config, opnsense_config, runner);
+            let out = check.run(config, platform_data, runner);
             let elapsed = started.elapsed();
             check_timings.push(CheckTiming {
                 section: check.name(),

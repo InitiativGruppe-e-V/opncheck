@@ -5,14 +5,32 @@ use std::path::Path;
 
 pub use section::{LocalSection, LocalState, collect_sections};
 
-use crate::{checks, config::Config, runner::CommandRunner, update, xml};
+use crate::{
+    checks::{self, Check},
+    config::Config,
+    platform::Platform,
+    platform::*,
+    runner::CommandRunner,
+    update,
+};
 
 pub fn plugin_output(config_path: &Path, config: &mut Config) -> Result<String> {
+    #[cfg(all(target_os = "freebsd", target_arch = "x86_64"))]
+    return plugin_output_for::<OPNSenseX64>(config_path, config, checks::opnsense_checks());
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    return plugin_output_for::<LinuxX64>(config_path, config, checks::linux_checks());
+}
+
+fn plugin_output_for<P: Platform>(
+    config_path: &Path,
+    config: &mut Config,
+    checks: &'static [&'static dyn Check<P>],
+) -> Result<String> {
+    let platform_data = P::platform_data()?;
     let runner = CommandRunner::new(config.security.command_timeout_seconds);
     let update_result = update::check_and_update(config_path, config);
-    let opnsense_config = xml::read_config(Path::new("/conf/config.xml"))?;
 
-    let sections = checks::collect_all(config, &opnsense_config, &runner, update_result);
+    let sections = checks::collect_all::<P>(config, &platform_data, checks, &runner, update_result);
 
     Ok(collect_sections(sections))
 }

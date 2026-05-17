@@ -6,9 +6,9 @@ use strum::Display;
 
 use crate::{
     config::Config,
-    runner::CommandRunner,
-    xml::OpnsenseConfig,
     output::{LocalSection, LocalState},
+    platform::{OPNSensePlatformData, OPNSenseX64},
+    runner::CommandRunner,
     utils::{catch_missing::CatchMissing, percentage::Percentage},
 };
 
@@ -16,7 +16,7 @@ use super::Check;
 
 pub struct Gateway;
 
-impl Check for Gateway {
+impl Check<OPNSenseX64> for Gateway {
     fn name(&self) -> &'static str {
         "gateway"
     }
@@ -24,7 +24,7 @@ impl Check for Gateway {
     fn run(
         &self,
         _config: &Config,
-        _opnsense_config: &OpnsenseConfig,
+        _platform_data: &OPNSensePlatformData,
         runner: &CommandRunner,
     ) -> anyhow::Result<LocalSection> {
         let mut out = LocalSection::new();

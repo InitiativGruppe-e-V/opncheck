@@ -1,8 +1,4 @@
-use std::{
-    fs,
-    os::unix::fs::MetadataExt,
-    path::Path,
-};
+use std::{fs, os::unix::fs::MetadataExt, path::Path};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};

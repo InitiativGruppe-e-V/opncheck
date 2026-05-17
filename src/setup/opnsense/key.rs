@@ -5,18 +5,18 @@ use dialoguer::Input;
 
 use crate::{
     cli::SetupOptions,
-    setup::{AUTHORIZED_KEYS, CHECKMK_AGENT, SSH_DIR},
+    platform::{CurrentPlatform, Platform},
     utils::fs::ensure_mode,
 };
 
-use super::{SetupStep, StepStatus, can_prompt};
+use super::{AUTHORIZED_KEYS, SSH_DIR, SetupStep, StepStatus, can_prompt};
 
-pub(super) struct CheckmkKeyStep<'a> {
+pub(in crate::setup) struct CheckmkKeyStep<'a> {
     options: &'a SetupOptions,
 }
 
 impl<'a> CheckmkKeyStep<'a> {
-    pub(super) fn new(options: &'a SetupOptions) -> Self {
+    pub(in crate::setup) fn new(options: &'a SetupOptions) -> Self {
         Self { options }
     }
 }
@@ -27,10 +27,11 @@ impl SetupStep for CheckmkKeyStep<'_> {
     fn run(&self) -> Result<StepStatus> {
         let auth_keys_path = Path::new(AUTHORIZED_KEYS);
         let mut lines = self.read_authorized_keys(auth_keys_path)?;
+        let checkmk_agent = CurrentPlatform::checkmk_agent_path().display().to_string();
 
         let target_idx = lines
             .iter()
-            .position(|l| l.contains(CHECKMK_AGENT) && l.contains("ssh-ed25519"));
+            .position(|l| l.contains(&checkmk_agent) && l.contains("ssh-ed25519"));
 
         if let Some(idx) = target_idx {
             self.handle_existing_key(auth_keys_path, &mut lines, idx)
@@ -53,7 +54,7 @@ impl CheckmkKeyStep<'_> {
     fn format_key_line(&self, key: &str) -> String {
         format!(
             "command=\"{}\",no-pty,no-port-forwarding,no-X11-forwarding,no-agent-forwarding {}",
-            CHECKMK_AGENT,
+            CurrentPlatform::checkmk_agent_path().display(),
             key.trim()
         )
     }

@@ -1,12 +1,9 @@
-use std::{
-    fs::{self},
-    path::Path,
-};
+use std::fs;
 
 use anyhow::{Context, Result};
 
 use crate::{
-    setup::INSTALL_PATH,
+    platform::{CurrentPlatform, Platform},
     utils::fs::{ensure_mode, files_identical, paths_are_same_file},
 };
 
@@ -19,11 +16,20 @@ impl SetupStep for BinaryStep {
 
     fn run(&self) -> Result<StepStatus> {
         let source = std::env::current_exe().context("failed to locate running opncheck binary")?;
-        let destination = Path::new(INSTALL_PATH);
+        let destination = CurrentPlatform::install_path();
 
-        if paths_are_same_file(&source, destination)? || files_identical(&source, destination)? {
-            let changed = ensure_mode(destination, 0o755)
-                .with_context(|| format!("failed to set permissions on {INSTALL_PATH}"))?;
+        if let Some(parent) = destination.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("failed to create {}", parent.display()))?;
+        }
+
+        if destination.exists()
+            && (paths_are_same_file(&source, destination)?
+                || files_identical(&source, destination)?)
+        {
+            let changed = ensure_mode(destination, 0o755).with_context(|| {
+                format!("failed to set permissions on {}", destination.display())
+            })?;
             return Ok(if changed {
                 StepStatus::Changed
             } else {
@@ -32,6 +38,8 @@ impl SetupStep for BinaryStep {
         }
 
         fs::copy(source, destination).context("failed to copy binary to target")?;
+        ensure_mode(destination, 0o755)
+            .with_context(|| format!("failed to set permissions on {}", destination.display()))?;
 
         Ok(StepStatus::Changed)
     }

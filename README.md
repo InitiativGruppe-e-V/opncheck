@@ -1,20 +1,20 @@
 # OPNcheck
 
-A CheckMK agent plugin for OPNsense.
+A CheckMK agent plugin for OPNsense and Linux hosts.
 
-`opncheck` extends the standard Checkmk FreeBSD agent with OPNsense-specific monitoring data. It is intended to be executed as a plugin by the `check_mk_agent`.
+`opncheck` extends the standard Checkmk agent with local monitoring data. On
+OPNsense/FreeBSD it provides the original firewall-specific checks. On Linux it
+currently provides platform-neutral checks only.
 
 Supported checks:
-- Firmware status and vulnerable packages (pkg audit)
-- Service status
-- Gateway health and DHCP lease counts
-- Unbound and Nginx status
-- WireGuard peers and handshake staleness
-- Suricata IDS/IPS alert/drop events
+- OPNsense x86_64: firmware status, vulnerable packages (`pkg audit`),
+  services, gateway health, DHCP lease counts, Unbound, Nginx, WireGuard, and
+  Suricata IDS/IPS events
+- Linux x86_64: meta/version checks, systemd service status, and Nginx status
 
 ## Installation
 
-Download the binary for FreeBSD x86_64 and run the interactive setup:
+Download the binary for the current platform and run setup.
 
 ```sh
 fetch -o /usr/local/bin/opncheck https://github.com/initiativgruppe-e-v/opncheck/releases/latest/download/opncheck-x86_64-unknown-freebsd
@@ -22,12 +22,28 @@ chmod +x /usr/local/bin/opncheck
 opncheck setup
 ```
 
+Linux x86_64:
+
+```sh
+curl -L -o /usr/local/bin/opncheck https://github.com/initiativgruppe-e-v/opncheck/releases/latest/download/opncheck-x86_64-unknown-linux-gnu
+chmod +x /usr/local/bin/opncheck
+opncheck setup --yes
+```
+
 The `setup` command:
-- Installs `check_mk_agent` and required packages (`ipmitool`, `libstatgrab`, etc.)
-- Configures the plugin symlink in `/usr/local/lib/check_mk_agent/plugins/`
-- Sets up restricted SSH access in `/root/.ssh/authorized_keys2`
-- Generates a default configuration in `/usr/local/etc/opncheck.toml`
+- On OPNsense, installs `check_mk_agent` and required packages (`ipmitool`,
+  `libstatgrab`, etc.)
+- Configures the plugin symlink in the platform-specific Checkmk plugin path
+- On OPNsense, sets up restricted SSH access in `/root/.ssh/authorized_keys2`
+- Generates a default configuration in the platform-specific config path
 - Optionally configures auto-updates of the binary in regular intervals
+
+Platform paths:
+
+| Platform | Config | Plugin link | State |
+| --- | --- | --- | --- |
+| OPNsense x86_64 | `/usr/local/etc/opncheck.toml` | `/usr/local/lib/check_mk_agent/plugins/opncheck` | `/var/db/opncheck` |
+| Linux x86_64 | `/etc/opncheck.toml` | `/usr/lib/check_mk_agent/plugins/opncheck` | `/var/lib/opncheck` |
 
 For unattended setup:
 ```sh
@@ -36,13 +52,14 @@ opncheck setup --yes --enable-updates --checkmk-key 'ssh-ed25519 AAAA... checkmk
 
 ## Auto-Updates
 
-If enabled, `opncheck` checks for newer GitHub releases during execution. The check is timestamp-gated to run at most once every 6 hours. When an update is found, the binary replaces itself in `/usr/local/bin/opncheck`.
+If enabled, `opncheck` checks for newer GitHub releases during execution. The check is timestamp-gated to run at most once every 6 hours. When an update is found, the binary for the current supported OS/architecture replaces itself in `/usr/local/bin/opncheck`.
 
 Updates can be checked and applied manually with `opncheck update`.
 
 ## Configuration
 
-Configuration is managed in `/usr/local/etc/opncheck.toml`.
+Configuration is managed in `/usr/local/etc/opncheck.toml` on OPNsense and
+`/etc/opncheck.toml` on Linux.
 
 ```toml
 [checks]
@@ -50,6 +67,14 @@ skip = []
 
 [checks.services]
 ignored = ["iperf"]
+
+[checks.nginx]
+status_socket = "/var/run/nginx_status.sock"
+status_urls = [
+  "http://127.0.0.1/nginx_status",
+  "http://127.0.0.1/status",
+  "http://127.0.0.1/vts",
+]
 
 [checks.wireguard]
 stale_warn_seconds = 300
@@ -79,4 +104,4 @@ The effective configuration can be inspected with `opncheck config`.
 
 4. **SSH Host Key Verification**: Make a connection attempt at least once from your CheckMK environment to the SSH host: `ssh root@YOUR_OPNSENSE_IP` and confirm the host key. 
 
-4. **Service Discovery**: Run a service discovery. Standard FreeBSD services (CPU, Memory, Interfaces) will be combined with OPNsense-specific checks provided by `opncheck`.
+4. **Service Discovery**: Run a service discovery. Standard agent services (CPU, Memory, Interfaces) will be combined with OPNsense-specific checks provided by `opncheck`.

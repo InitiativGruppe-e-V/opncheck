@@ -9,9 +9,9 @@ use sscanf::sscanf;
 use super::Check;
 use crate::{
     config::Config,
-    runner::CommandRunner,
-    xml::OpnsenseConfig,
     output::{LocalSection, LocalState},
+    platform::{OPNSensePlatformData, OPNSenseX64},
+    runner::CommandRunner,
     skip_check,
 };
 
@@ -19,7 +19,7 @@ const KEA_URL: &str = "http://127.0.0.1:8000/";
 
 pub struct Kea;
 
-impl Check for Kea {
+impl Check<OPNSenseX64> for Kea {
     fn name(&self) -> &'static str {
         "kea"
     }
@@ -27,7 +27,7 @@ impl Check for Kea {
     fn run(
         &self,
         _config: &Config,
-        _opnsense_config: &OpnsenseConfig,
+        _platform_data: &OPNSensePlatformData,
         _runner: &CommandRunner,
     ) -> anyhow::Result<LocalSection> {
         let mut out = LocalSection::new();

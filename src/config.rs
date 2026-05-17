@@ -8,6 +8,8 @@ use anyhow::{Context, Result};
 use jiff::{SignedDuration, Timestamp};
 use serde::{Deserialize, Serialize};
 
+use crate::platform::{CurrentPlatform, Platform};
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
@@ -21,6 +23,7 @@ pub struct Config {
 #[derive(Default)]
 pub struct Checks {
     pub skip: BTreeSet<String>,
+    pub nginx: Nginx,
     pub services: Services,
     pub wireguard: Wireguard,
     pub suricata: Suricata,
@@ -30,6 +33,13 @@ pub struct Checks {
 #[serde(default)]
 pub struct Services {
     pub ignored: BTreeSet<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Nginx {
+    pub status_socket: PathBuf,
+    pub status_urls: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,6 +83,22 @@ impl Default for Services {
     }
 }
 
+impl Default for Nginx {
+    fn default() -> Self {
+        Self {
+            status_socket: PathBuf::from("/var/run/nginx_status.sock"),
+            status_urls: vec![
+                "http://127.0.0.1/nginx_status".to_owned(),
+                "http://127.0.0.1/status".to_owned(),
+                "http://127.0.0.1/vts".to_owned(),
+                "http://localhost/nginx_status".to_owned(),
+                "http://localhost/status".to_owned(),
+                "http://localhost/vts".to_owned(),
+            ],
+        }
+    }
+}
+
 impl Default for Wireguard {
     fn default() -> Self {
         Self {
@@ -86,7 +112,7 @@ impl Default for Suricata {
     fn default() -> Self {
         Self {
             log_path: PathBuf::from("/var/log/suricata/eve.json"),
-            state_path: PathBuf::from("/var/db/opncheck/suricata-state.json"),
+            state_path: CurrentPlatform::state_dir().join("suricata-state.json"),
             max_summary_events: 5,
             include_allowed_in_summary: true,
             initialize_from_end: true,

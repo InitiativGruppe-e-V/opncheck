@@ -8,7 +8,7 @@ use console::style;
 
 use super::{SetupStep, StepStatus};
 
-pub(super) struct PackagesStep;
+pub(in crate::setup) struct PackagesStep;
 
 impl SetupStep for PackagesStep {
     const NAME: &'static str = "install packages";

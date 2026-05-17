@@ -3,15 +3,15 @@ use std::{collections::HashMap, path::Path};
 use super::Check;
 use crate::{
     config::Config,
-    runner::CommandRunner,
-    xml::OpnsenseConfig,
     output::{LocalSection, LocalState},
+    platform::{OPNSensePlatformData, OPNSenseX64},
+    runner::CommandRunner,
     skip_check,
 };
 
 pub struct Unbound;
 
-impl Check for Unbound {
+impl Check<OPNSenseX64> for Unbound {
     fn name(&self) -> &'static str {
         "unbound"
     }
@@ -19,10 +19,11 @@ impl Check for Unbound {
     fn run(
         &self,
         _config: &Config,
-        opnsense_config: &OpnsenseConfig,
+        platform_data: &OPNSensePlatformData,
         runner: &CommandRunner,
     ) -> anyhow::Result<LocalSection> {
         let mut out = LocalSection::new();
+        let opnsense_config = &platform_data.opnsense_config;
         if !opnsense_config.unbound_enabled() {
             skip_check!();
         }
@@ -62,21 +63,15 @@ impl Check for Unbound {
             )
             .with_metric(
                 "dns_cachehits",
-                stats
-                    .get("num_cachehits")
-                    .map_or("0", String::as_str),
+                stats.get("num_cachehits").map_or("0", String::as_str),
             )
             .with_metric(
                 "dns_cachemiss",
-                stats
-                    .get("num_cachemiss")
-                    .map_or("0", String::as_str),
+                stats.get("num_cachemiss").map_or("0", String::as_str),
             )
             .with_metric(
                 "avg_response_time",
-                stats
-                    .get("recursion_time_avg")
-                    .map_or("0", String::as_str),
+                stats.get("recursion_time_avg").map_or("0", String::as_str),
             );
         Ok(out)
     }

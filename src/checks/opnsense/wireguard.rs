@@ -3,15 +3,15 @@ use sscanf::sscanf;
 
 use crate::{
     config::Config,
-    runner::CommandRunner,
-    xml::OpnsenseConfig,
     output::{LocalSection, LocalState},
+    platform::{OPNSensePlatformData, OPNSenseX64},
+    runner::CommandRunner,
     skip_check,
 };
 
 pub struct Wireguard;
 
-impl Check for Wireguard {
+impl Check<OPNSenseX64> for Wireguard {
     fn name(&self) -> &'static str {
         "wireguard"
     }
@@ -19,10 +19,11 @@ impl Check for Wireguard {
     fn run(
         &self,
         config: &Config,
-        opnsense_config: &OpnsenseConfig,
+        platform_data: &OPNSensePlatformData,
         runner: &CommandRunner,
     ) -> anyhow::Result<LocalSection> {
         let mut out = LocalSection::new();
+        let opnsense_config = &platform_data.opnsense_config;
         if !opnsense_config.wireguard_enabled() {
             skip_check!();
         }
