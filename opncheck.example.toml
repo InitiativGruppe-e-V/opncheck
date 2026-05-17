@@ -9,17 +9,13 @@ skip = []
 ignored = ["iperf"]
 
 [checks.nginx]
-# OPNsense uses the VTS Unix socket. Linux auto-detects these local HTTP
-# status endpoints and skips the check when none responds.
+# OPNsense uses the VTS Unix socket.
 status_socket = "/var/run/nginx_status.sock"
-status_urls = [
-  "http://127.0.0.1/nginx_status",
-  "http://127.0.0.1/status",
-  "http://127.0.0.1/vts",
-  "http://localhost/nginx_status",
-  "http://localhost/status",
-  "http://localhost/vts",
-]
+
+[scripts]
+# Bundled Checkmk scripts to execute verbatim and append to plugin output.
+# Available examples: ["mk_apt", "mk_docker"]
+enabled = []
 
 [checks.wireguard]
 # Seconds since the last WireGuard handshake before alerting.

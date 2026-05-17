@@ -14,6 +14,7 @@ use crate::platform::{CurrentPlatform, Platform};
 #[serde(default)]
 pub struct Config {
     pub checks: Checks,
+    pub scripts: Scripts,
     pub security: Security,
     pub updates: Updates,
 }
@@ -57,6 +58,12 @@ pub struct Suricata {
     pub max_summary_events: usize,
     pub include_allowed_in_summary: bool,
     pub initialize_from_end: bool,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Scripts {
+    pub enabled: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -4,6 +4,7 @@ pub mod config;
 pub mod output;
 pub mod platform;
 pub mod runner;
+pub mod scripts;
 pub mod setup;
 pub mod update;
 pub mod utils;

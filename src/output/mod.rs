@@ -1,5 +1,6 @@
 pub mod section;
 
+use crate::scripts;
 use anyhow::Result;
 use std::path::Path;
 
@@ -31,6 +32,9 @@ fn plugin_output_for<P: Platform>(
     let update_result = update::check_and_update(config_path, config);
 
     let sections = checks::collect_all::<P>(config, &platform_data, checks, &runner, update_result);
+    let script_output = scripts::collect::<P>(config, &runner)?;
 
-    Ok(collect_sections(sections))
+    let mut output = collect_sections(sections);
+    output.push_str(&script_output);
+    Ok(output)
 }

@@ -70,11 +70,9 @@ ignored = ["iperf"]
 
 [checks.nginx]
 status_socket = "/var/run/nginx_status.sock"
-status_urls = [
-  "http://127.0.0.1/nginx_status",
-  "http://127.0.0.1/status",
-  "http://127.0.0.1/vts",
-]
+
+[scripts]
+enabled = []
 
 [checks.wireguard]
 stale_warn_seconds = 300
