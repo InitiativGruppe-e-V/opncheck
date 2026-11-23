@@ -1,4 +1,4 @@
-use std::net::IpAddr;
+use std::{collections::BTreeMap, net::IpAddr};
 
 use jiff::SignedDuration;
 use serde::Deserialize;
@@ -32,7 +32,7 @@ impl Check for Gateway {
         let status = runner.run("configctl", ["interface", "gateways", "status"])?;
         let response: GatewayResponse = serde_json::from_str(&status)?;
 
-        for gateway in response.0 {
+        for gateway in response.into_gateways() {
             let GatewayInfo {
                 name,
                 address,
@@ -47,6 +47,9 @@ impl Check for Gateway {
             let loss = loss.as_ref().unwrap_or(&Percentage::HUNDRED);
 
             let state = LocalState::from(status);
+            let address = address
+                .as_ref()
+                .map_or_else(|| "no address".to_owned(), IpAddr::to_string);
 
             out.row(
                 state,
@@ -62,13 +65,30 @@ impl Check for Gateway {
     }
 }
 
+/// Output of `configctl interface gateways status`.
+///
+/// Older OPNsense releases return a list of gateways. Newer releases return an
+/// object keyed by gateway name (but still `[]` when there are no gateways).
 #[derive(Deserialize)]
-pub struct GatewayResponse(Vec<GatewayInfo>);
+#[serde(untagged)]
+pub enum GatewayResponse {
+    List(Vec<GatewayInfo>),
+    Map(BTreeMap<String, GatewayInfo>),
+}
+
+impl GatewayResponse {
+    fn into_gateways(self) -> Vec<GatewayInfo> {
+        match self {
+            GatewayResponse::List(list) => list,
+            GatewayResponse::Map(map) => map.into_values().collect(),
+        }
+    }
+}
 
 #[derive(Deserialize)]
 pub struct GatewayInfo {
     name: String,
-    address: IpAddr,
+    address: CatchMissing<IpAddr>,
     status: GatewayStatus,
     loss: CatchMissing<Percentage>,
     delay: CatchMissing<SignedDuration>,
@@ -103,5 +123,38 @@ impl From<GatewayStatus> for LocalState {
             GatewayStatus::Offline | GatewayStatus::LatencyAndPacketLoss => LocalState::Crit,
             GatewayStatus::Pending => LocalState::Unknown,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_map_response() {
+        let json = r#"{"WAN_DHCP":{"name":"WAN_DHCP","address":"192.0.2.1","status":"none","status_translated":"Online","loss":"0.0 %","delay":"1.234 ms","stddev":"0.1 ms","monitor":"192.0.2.1"},"WAN_DHCP6":{"name":"WAN_DHCP6","address":"~","status":"none","status_translated":"Online","loss":"~","delay":"~","stddev":"~","monitor":"~"}}"#;
+        let gateways = serde_json::from_str::<GatewayResponse>(json)
+            .unwrap()
+            .into_gateways();
+        assert_eq!(gateways.len(), 2);
+        assert_eq!(gateways[0].name, "WAN_DHCP");
+        assert!(gateways[1].address.is_none());
+    }
+
+    #[test]
+    fn parses_list_response() {
+        let json = r#"[{"name":"WAN_DHCP","address":"192.0.2.1","status":"down","loss":"100.0 %","delay":"~","stddev":"~","monitor":"192.0.2.1"}]"#;
+        let gateways = serde_json::from_str::<GatewayResponse>(json)
+            .unwrap()
+            .into_gateways();
+        assert_eq!(gateways.len(), 1);
+    }
+
+    #[test]
+    fn parses_empty_response() {
+        let gateways = serde_json::from_str::<GatewayResponse>("[]")
+            .unwrap()
+            .into_gateways();
+        assert!(gateways.is_empty());
     }
 }
